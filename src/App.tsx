@@ -1,13 +1,35 @@
-import { useState } from 'react';
-import { Timer as TimerIcon, BarChart3 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Timer as TimerIcon, BarChart3, LogOut } from 'lucide-react';
 import { Timer } from './components/Timer';
 import { TaskInput } from './components/TaskInput';
 import { TaskHistory } from './components/TaskHistory';
 import { Analytics } from './components/Analytics';
+import { Auth } from './components/Auth';
 import { useTimeTracking } from './hooks/useTimeTracking';
+import { supabase } from './lib/supabase';
+import type { Session } from '@supabase/supabase-js';
 import './index.css';
 
 function App() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   const {
     entries,
     clients,
@@ -17,7 +39,7 @@ function App() {
     startTimer,
     stopTimer,
     deleteEntry,
-  } = useTimeTracking();
+  } = useTimeTracking(session?.user.id);
 
   const [taskName, setTaskName] = useState('');
   const [selectedClientId, setSelectedClientId] = useState('');
@@ -36,14 +58,32 @@ function App() {
 
   const handleAddClient = (name: string) => {
     const newClient = addClient(name);
-    setSelectedClientId(newClient.id);
+    if (newClient) {
+      setSelectedClientId(newClient.id);
+    }
   };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <Auth />;
+  }
 
   return (
     <div className="min-h-screen py-8 px-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <header className="mb-8 text-center animate-fade-in">
+        <header className="mb-8 text-center animate-fade-in relative">
           <div className="flex items-center justify-center gap-3 mb-2">
             <TimerIcon size={40} className="text-primary-600" />
             <h1 className="text-4xl font-bold bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">
@@ -51,6 +91,14 @@ function App() {
             </h1>
           </div>
           <p className="text-slate-600">シンプルで美しい時間管理</p>
+
+          <button
+            onClick={handleSignOut}
+            className="absolute right-0 top-0 p-2 text-slate-400 hover:text-slate-600 transition-colors"
+            title="ログアウト"
+          >
+            <LogOut size={20} />
+          </button>
         </header>
 
         {/* Tab Navigation */}
@@ -58,8 +106,8 @@ function App() {
           <button
             onClick={() => setActiveTab('tracker')}
             className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all duration-300 ${activeTab === 'tracker'
-                ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg'
-                : 'bg-white/50 backdrop-blur-sm text-slate-700 hover:bg-white/80'
+              ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg'
+              : 'bg-white/50 backdrop-blur-sm text-slate-700 hover:bg-white/80'
               }`}
           >
             <div className="flex items-center justify-center gap-2">
@@ -70,8 +118,8 @@ function App() {
           <button
             onClick={() => setActiveTab('analytics')}
             className={`flex-1 px-6 py-3 rounded-xl font-medium transition-all duration-300 ${activeTab === 'analytics'
-                ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg'
-                : 'bg-white/50 backdrop-blur-sm text-slate-700 hover:bg-white/80'
+              ? 'bg-gradient-to-r from-primary-500 to-primary-600 text-white shadow-lg'
+              : 'bg-white/50 backdrop-blur-sm text-slate-700 hover:bg-white/80'
               }`}
           >
             <div className="flex items-center justify-center gap-2">

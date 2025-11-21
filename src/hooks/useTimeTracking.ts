@@ -1,92 +1,202 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { TimeEntry, Client } from '../types';
 import { generateId, formatDate } from '../utils/helpers';
+import { supabase } from '../lib/supabase';
 
-const STORAGE_KEY_ENTRIES = 'timeEntries';
-const STORAGE_KEY_CLIENTS = 'clients';
 
-export const useTimeTracking = () => {
+
+export const useTimeTracking = (userId?: string) => {
     const [entries, setEntries] = useState<TimeEntry[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null);
 
-    // Load data from localStorage on mount
+    // Fetch data from Supabase
     useEffect(() => {
-        const savedEntries = localStorage.getItem(STORAGE_KEY_ENTRIES);
-        const savedClients = localStorage.getItem(STORAGE_KEY_CLIENTS);
+        if (!userId) return;
 
-        if (savedEntries) {
-            setEntries(JSON.parse(savedEntries));
-        }
+        const fetchData = async () => {
+            // Fetch Clients
+            const { data: clientsData } = await supabase
+                .from('clients')
+                .select('*')
+                .order('created_at', { ascending: true });
 
-        if (savedClients) {
-            setClients(JSON.parse(savedClients));
-        } else {
-            // Initialize with default client
-            const defaultClient: Client = {
-                id: generateId(),
-                name: 'デフォルト',
-                color: '#0ea5e9',
-            };
-            setClients([defaultClient]);
-            localStorage.setItem(STORAGE_KEY_CLIENTS, JSON.stringify([defaultClient]));
-        }
-    }, []);
+            if (clientsData) {
+                setClients(clientsData.map(c => ({
+                    id: c.id,
+                    name: c.name,
+                    color: c.color
+                })));
+            }
 
-    // Save entries to localStorage whenever they change
-    useEffect(() => {
-        if (entries.length > 0) {
-            localStorage.setItem(STORAGE_KEY_ENTRIES, JSON.stringify(entries));
-        }
-    }, [entries]);
+            // Fetch Time Entries
+            const { data: entriesData } = await supabase
+                .from('time_entries')
+                .select('*')
+                .order('start_time', { ascending: false });
 
-    // Save clients to localStorage whenever they change
-    useEffect(() => {
-        if (clients.length > 0) {
-            localStorage.setItem(STORAGE_KEY_CLIENTS, JSON.stringify(clients));
-        }
-    }, [clients]);
+            if (entriesData) {
+                const mappedEntries: TimeEntry[] = entriesData.map(e => ({
+                    id: e.id,
+                    taskName: e.task_name,
+                    clientId: e.client_id,
+                    startTime: new Date(e.start_time).getTime(),
+                    endTime: e.end_time ? new Date(e.end_time).getTime() : null,
+                    duration: e.duration || 0,
+                    date: formatDate(new Date(e.start_time)),
+                }));
 
-    const addClient = useCallback((name: string, color?: string) => {
-        const newClient: Client = {
-            id: generateId(),
+                setEntries(mappedEntries);
+
+                // Find active entry (endTime is null)
+                const active = mappedEntries.find(e => e.endTime === null);
+                if (active) {
+                    setActiveEntry(active);
+                }
+            }
+        };
+
+        fetchData();
+    }, [userId]);
+
+    const addClient = useCallback(async (name: string, color?: string) => {
+        if (!userId) return null;
+
+        const newClient = {
+            user_id: userId,
             name,
             color: color || '#0ea5e9',
         };
-        setClients((prev) => [...prev, newClient]);
-        return newClient;
-    }, []);
 
-    const startTimer = useCallback((taskName: string, clientId: string) => {
-        const newEntry: TimeEntry = {
-            id: generateId(),
+        // Optimistic update
+        const tempId = generateId();
+        const optimisticClient = { id: tempId, ...newClient };
+        setClients(prev => [...prev, optimisticClient]);
+
+        const { data, error } = await supabase
+            .from('clients')
+            .insert([newClient])
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error adding client:', error);
+            setClients(prev => prev.filter(c => c.id !== tempId)); // Revert
+            return null;
+        }
+
+        if (data) {
+            // Replace optimistic client with real one
+            setClients(prev => prev.map(c => c.id === tempId ? { id: data.id, name: data.name, color: data.color } : c));
+            return { id: data.id, name: data.name, color: data.color };
+        }
+        return null;
+    }, [userId]);
+
+    const startTimer = useCallback(async (taskName: string, clientId: string) => {
+        if (!userId) return;
+
+        const startTime = new Date();
+
+        const newEntryPayload = {
+            user_id: userId,
+            task_name: taskName,
+            client_id: clientId,
+            start_time: startTime.toISOString(),
+            end_time: null,
+            duration: 0,
+        };
+
+        // Optimistic update
+        const tempId = generateId();
+        const optimisticEntry: TimeEntry = {
+            id: tempId,
             taskName,
             clientId,
-            startTime: Date.now(),
+            startTime: startTime.getTime(),
             endTime: null,
             duration: 0,
-            date: formatDate(new Date()),
+            date: formatDate(startTime),
         };
-        setActiveEntry(newEntry);
-    }, []);
 
-    const stopTimer = useCallback(() => {
-        if (activeEntry) {
-            const endTime = Date.now();
-            const duration = Math.floor((endTime - activeEntry.startTime) / 1000);
-            const completedEntry: TimeEntry = {
-                ...activeEntry,
-                endTime,
-                duration,
-            };
-            setEntries((prev) => [completedEntry, ...prev]);
+        setActiveEntry(optimisticEntry);
+        setEntries(prev => [optimisticEntry, ...prev]);
+
+        const { data, error } = await supabase
+            .from('time_entries')
+            .insert([newEntryPayload])
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error starting timer:', error);
             setActiveEntry(null);
+            setEntries(prev => prev.filter(e => e.id !== tempId));
+            return;
         }
-    }, [activeEntry]);
 
-    const deleteEntry = useCallback((id: string) => {
-        setEntries((prev) => prev.filter((entry) => entry.id !== id));
-    }, []);
+        if (data) {
+            // Update ID with real one
+            const realEntry: TimeEntry = {
+                id: data.id,
+                taskName: data.task_name,
+                clientId: data.client_id,
+                startTime: new Date(data.start_time).getTime(),
+                endTime: null,
+                duration: 0,
+                date: formatDate(new Date(data.start_time)),
+            };
+            setActiveEntry(realEntry);
+            setEntries(prev => prev.map(e => e.id === tempId ? realEntry : e));
+        }
+    }, [userId]);
+
+    const stopTimer = useCallback(async () => {
+        if (!activeEntry || !userId) return;
+
+        const endTime = new Date();
+        const duration = Math.floor((endTime.getTime() - activeEntry.startTime) / 1000);
+
+        // Optimistic update
+        const completedEntry: TimeEntry = {
+            ...activeEntry,
+            endTime: endTime.getTime(),
+            duration,
+        };
+
+        setActiveEntry(null);
+        setEntries(prev => prev.map(e => e.id === activeEntry.id ? completedEntry : e));
+
+        const { error } = await supabase
+            .from('time_entries')
+            .update({
+                end_time: endTime.toISOString(),
+                duration: duration
+            })
+            .eq('id', activeEntry.id);
+
+        if (error) {
+            console.error('Error stopping timer:', error);
+            // Revert (this is tricky, maybe just show error)
+        }
+    }, [activeEntry, userId]);
+
+    const deleteEntry = useCallback(async (id: string) => {
+        if (!userId) return;
+
+        // Optimistic update
+        setEntries(prev => prev.filter(e => e.id !== id));
+
+        const { error } = await supabase
+            .from('time_entries')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error deleting entry:', error);
+            // Fetch to revert?
+        }
+    }, [userId]);
 
     const recentTaskNames = Array.from(new Set(entries.map(e => e.taskName))).slice(0, 10);
 
