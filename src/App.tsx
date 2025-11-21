@@ -56,8 +56,8 @@ function App() {
     setTaskName('');
   };
 
-  const handleAddClient = (name: string) => {
-    const newClient = addClient(name);
+  const handleAddClient = async (name: string) => {
+    const newClient = await addClient(name);
     if (newClient) {
       setSelectedClientId(newClient.id);
     }
