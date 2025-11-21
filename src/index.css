@@ -48,8 +48,11 @@
   }
 
   body {
-    @apply bg-gradient-to-br from-slate-50 to-slate-100 text-slate-900 font-sans;
-    @apply min-h-screen antialiased;
+    @apply text-slate-800 antialiased min-h-screen;
+    background: radial-gradient(circle at top left, #e0f2fe, transparent 40%),
+      radial-gradient(circle at bottom right, #f0f9ff, transparent 40%),
+      linear-gradient(to bottom right, #f8fafc, #f1f5f9);
+    font-feature-settings: "palt";
   }
 }
 
