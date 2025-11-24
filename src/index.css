@@ -17,7 +17,7 @@
 
 @layer components {
   .glass-card {
-    @apply bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20;
+    @apply bg-white rounded-2xl shadow-xl border border-slate-100;
     @apply transition-all duration-300 hover:shadow-2xl;
   }
 
@@ -29,15 +29,15 @@
   }
 
   .btn-secondary {
-    @apply bg-white/50 backdrop-blur-sm text-slate-700 font-medium;
+    @apply bg-white text-slate-700 font-medium;
     @apply px-6 py-3 rounded-xl border border-slate-200;
-    @apply transition-all duration-300 hover:bg-white/80 hover:shadow-md;
+    @apply transition-all duration-300 hover:bg-slate-50 hover:shadow-md;
   }
 
   .input-field {
     @apply w-full px-4 py-3 rounded-xl border border-slate-200;
-    @apply bg-white/50 backdrop-blur-sm;
-    @apply focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-transparent;
+    @apply bg-white;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary-400;
     @apply transition-all duration-200;
   }
 }
@@ -81,7 +81,7 @@
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.5s ease-out;
+  animation: fadeIn 0.2s ease-out;
 }
 
 .animate-pulse-slow {

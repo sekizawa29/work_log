@@ -209,5 +209,40 @@ export const useTimeTracking = (userId?: string) => {
         startTimer,
         stopTimer,
         deleteEntry,
+        updateEntry: async (id: string, startTime: number, endTime: number | null) => {
+            if (!userId) return;
+
+            const duration = endTime ? Math.floor((endTime - startTime) / 1000) : 0;
+            const date = formatDate(new Date(startTime));
+
+            // Optimistic update
+            setEntries(prev => prev.map(e => {
+                if (e.id === id) {
+                    return {
+                        ...e,
+                        startTime,
+                        endTime,
+                        duration,
+                        date
+                    };
+                }
+                return e;
+            }));
+
+            const { error } = await supabase
+                .from('time_entries')
+                .update({
+                    start_time: new Date(startTime).toISOString(),
+                    end_time: endTime ? new Date(endTime).toISOString() : null,
+                    duration
+                })
+                .eq('id', id);
+
+            if (error) {
+                console.error('Error updating entry:', error);
+                // Revert logic could be complex, for now just log error
+                // Ideally we should fetch the original data back
+            }
+        },
     };
 };

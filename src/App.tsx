@@ -39,6 +39,7 @@ function App() {
     startTimer,
     stopTimer,
     deleteEntry,
+    updateEntry,
   } = useTimeTracking(session?.user.id);
 
   const [taskName, setTaskName] = useState('');
@@ -132,7 +133,7 @@ function App() {
         {activeTab === 'tracker' ? (
           <>
             {/* Task Input */}
-            <div className="animate-fade-in" style={{ animationDelay: '0.1s', animationFillMode: 'both' }}>
+            <div className="animate-fade-in relative z-20" style={{ animationDelay: '0.1s', animationFillMode: 'both' }}>
               <TaskInput
                 clients={clients}
                 onAddClient={handleAddClient}
@@ -162,6 +163,7 @@ function App() {
                 entries={entries}
                 clients={clients}
                 onDelete={deleteEntry}
+                onUpdate={updateEntry}
               />
             </div>
           </>

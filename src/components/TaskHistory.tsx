@@ -1,20 +1,31 @@
-import { Trash2, Clock } from 'lucide-react';
+import { useState } from 'react';
+import { Trash2, Clock, Pencil } from 'lucide-react';
 import type { TimeEntry, Client } from '../types';
 import { formatDuration, formatDateTime } from '../utils/helpers';
+import { EditEntryModal } from './EditEntryModal';
 
 interface TaskHistoryProps {
     entries: TimeEntry[];
     clients: Client[];
     onDelete: (id: string) => void;
+    onUpdate: (id: string, startTime: number, endTime: number | null) => void;
 }
 
-export const TaskHistory = ({ entries, clients, onDelete }: TaskHistoryProps) => {
+export const TaskHistory = ({ entries, clients, onDelete, onUpdate }: TaskHistoryProps) => {
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+
     const getClientName = (clientId: string) => {
         return clients.find((c) => c.id === clientId)?.name || '不明';
     };
 
     const getClientColor = (clientId: string) => {
         return clients.find((c) => c.id === clientId)?.color || '#0ea5e9';
+    };
+
+    const handleEditClick = (entry: TimeEntry) => {
+        setEditingEntry(entry);
+        setIsEditModalOpen(true);
     };
 
     // Group entries by task name and client
@@ -76,13 +87,21 @@ export const TaskHistory = ({ entries, clients, onDelete }: TaskHistoryProps) =>
                                                 {entry.date}
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="font-semibold text-slate-700">
+                                        <div className="flex items-center gap-1">
+                                            <div className="font-semibold text-slate-700 mr-2">
                                                 {formatDuration(entry.duration)}
                                             </div>
                                             <button
+                                                onClick={() => handleEditClick(entry)}
+                                                className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-primary-600 p-2 rounded-lg hover:bg-primary-50"
+                                                title="編集"
+                                            >
+                                                <Pencil size={16} />
+                                            </button>
+                                            <button
                                                 onClick={() => onDelete(entry.id)}
-                                                className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50"
+                                                className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50"
+                                                title="削除"
                                             >
                                                 <Trash2 size={16} />
                                             </button>
@@ -94,6 +113,14 @@ export const TaskHistory = ({ entries, clients, onDelete }: TaskHistoryProps) =>
                     ))}
                 </div>
             )}
+
+            <EditEntryModal
+                key={editingEntry ? editingEntry.id : 'closed'}
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                entry={editingEntry}
+                onSave={onUpdate}
+            />
         </div>
     );
 };
