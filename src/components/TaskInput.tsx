@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Plus } from 'lucide-react';
 import type { Client } from '../types';
 
+import { Trash2 } from 'lucide-react';
+
 interface TaskInputProps {
     clients: Client[];
     onAddClient: (name: string) => void;
@@ -11,6 +13,7 @@ interface TaskInputProps {
     onClientChange: (clientId: string) => void;
     disabled?: boolean;
     recentTaskNames?: string[];
+    onDeleteClient: (id: string) => void;
 }
 
 export const TaskInput = ({
@@ -22,6 +25,7 @@ export const TaskInput = ({
     onClientChange,
     disabled = false,
     recentTaskNames = [],
+    onDeleteClient,
 }: TaskInputProps) => {
     const [showAddClient, setShowAddClient] = useState(false);
     const [newClientName, setNewClientName] = useState('');
@@ -117,7 +121,15 @@ export const TaskInput = ({
                                         } ${!selectedClient ? 'text-slate-400' : 'text-slate-800'}`}
                                     disabled={disabled}
                                 >
-                                    {selectedClient ? selectedClient.name : 'クライアントを選択'}
+                                    {selectedClient ? (
+                                        <div className="flex items-center gap-2">
+                                            <div
+                                                className="w-3 h-3 rounded-full"
+                                                style={{ backgroundColor: selectedClient.color || '#0ea5e9' }}
+                                            />
+                                            {selectedClient.name}
+                                        </div>
+                                    ) : 'クライアントを選択'}
                                 </button>
                                 {showClientDropdown && !disabled && (
                                     <div className="absolute top-full left-0 w-full bg-white border border-t-0 border-slate-200 rounded-b-xl shadow-lg animate-fade-in overflow-hidden z-0">
@@ -128,16 +140,36 @@ export const TaskInput = ({
                                                 </div>
                                             ) : (
                                                 clients.map((client) => (
-                                                    <button
+                                                    <div
                                                         key={client.id}
-                                                        className="w-full text-left px-4 py-3 hover:bg-primary-50 text-slate-700 transition-colors block border-t border-slate-100 first:border-t-0"
-                                                        onClick={() => {
-                                                            onClientChange(client.id);
-                                                            setShowClientDropdown(false);
-                                                        }}
+                                                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-primary-50 text-slate-700 transition-colors border-t border-slate-100 first:border-t-0 group"
                                                     >
-                                                        {client.name}
-                                                    </button>
+                                                        <button
+                                                            className="flex-1 text-left flex items-center gap-2"
+                                                            onClick={() => {
+                                                                onClientChange(client.id);
+                                                                setShowClientDropdown(false);
+                                                            }}
+                                                        >
+                                                            <div
+                                                                className="w-3 h-3 rounded-full"
+                                                                style={{ backgroundColor: client.color || '#0ea5e9' }}
+                                                            />
+                                                            {client.name}
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (window.confirm(`「${client.name}」を削除してもよろしいですか？`)) {
+                                                                    onDeleteClient(client.id);
+                                                                }
+                                                            }}
+                                                            className="text-slate-400 hover:text-red-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            title="削除"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
                                                 ))
                                             )}
                                         </div>

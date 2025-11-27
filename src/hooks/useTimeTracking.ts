@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { TimeEntry, Client } from '../types';
 import { generateId, formatDate } from '../utils/helpers';
+import { generateClientColor } from '../utils/colors';
 import { supabase } from '../lib/supabase';
 
 
@@ -22,7 +23,25 @@ export const useTimeTracking = (userId?: string) => {
                 .order('created_at', { ascending: true });
 
             if (clientsData) {
-                setClients(clientsData.map(c => ({
+                const clientsWithColors = await Promise.all(clientsData.map(async (c) => {
+                    // Migration: If color is default blue, generate a new one
+                    if (c.color === '#0ea5e9') {
+                        const newColor = generateClientColor(c.name);
+                        // Update Supabase silently
+                        await supabase
+                            .from('clients')
+                            .update({ color: newColor })
+                            .eq('id', c.id);
+                        return { ...c, color: newColor };
+                    }
+                    return {
+                        id: c.id,
+                        name: c.name,
+                        color: c.color
+                    };
+                }));
+
+                setClients(clientsWithColors.map(c => ({
                     id: c.id,
                     name: c.name,
                     color: c.color
@@ -65,7 +84,7 @@ export const useTimeTracking = (userId?: string) => {
         const newClient = {
             user_id: userId,
             name,
-            color: color || '#0ea5e9',
+            color: color || generateClientColor(name),
         };
 
         // Optimistic update
@@ -198,6 +217,23 @@ export const useTimeTracking = (userId?: string) => {
         }
     }, [userId]);
 
+    const deleteClient = useCallback(async (id: string) => {
+        if (!userId) return;
+
+        // Optimistic update
+        setClients(prev => prev.filter(c => c.id !== id));
+
+        const { error } = await supabase
+            .from('clients')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error deleting client:', error);
+            // Fetch to revert?
+        }
+    }, [userId]);
+
     const recentTaskNames = Array.from(new Set(entries.map(e => e.taskName))).slice(0, 10);
 
     return {
@@ -209,6 +245,7 @@ export const useTimeTracking = (userId?: string) => {
         startTimer,
         stopTimer,
         deleteEntry,
+        deleteClient,
         updateEntry: async (id: string, startTime: number, endTime: number | null) => {
             if (!userId) return;
 

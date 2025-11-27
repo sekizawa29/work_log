@@ -49,9 +49,7 @@
 
   body {
     @apply text-slate-800 antialiased min-h-screen;
-    background: radial-gradient(circle at top left, #e0f2fe, transparent 40%),
-      radial-gradient(circle at bottom right, #f0f9ff, transparent 40%),
-      linear-gradient(to bottom right, #f8fafc, #f1f5f9);
+    background: linear-gradient(to bottom right, #f0f9ff, #e0f2fe);
     font-feature-settings: "palt";
   }
 }
@@ -104,4 +102,45 @@
 
 .animate-breathe {
   animation: breathe 4s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+
+  100% {
+    transform: scale(2.5);
+    opacity: 0;
+  }
+}
+
+.animate-pulse-glow {
+  position: relative;
+}
+
+.animate-pulse-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+  animation: pulse-glow 2s ease-out infinite;
+}
+
+.accordion-content {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 0.2s ease-out, opacity 0.2s ease-out;
+}
+
+.accordion-content.expanded {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.accordion-content > div {
+  overflow: hidden;
 }

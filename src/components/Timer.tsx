@@ -1,6 +1,5 @@
 import { Play, Square } from 'lucide-react';
 import { useTimer } from '../hooks/useTimer';
-import { formatDuration } from '../utils/helpers';
 
 interface TimerProps {
     isActive: boolean;
@@ -13,61 +12,109 @@ interface TimerProps {
 export const Timer = ({ isActive, startTime, taskName, onStart, onStop }: TimerProps) => {
     const elapsed = useTimer(isActive, startTime);
 
+    const seconds = Math.floor(elapsed % 60);
+    const minutes = Math.floor((elapsed / 60) % 60);
+    const hours = Math.floor(elapsed / 3600);
+
+    // Progress ring calculations
+    const radius = 120;
+    const strokeWidth = 12;
+    const normalizedRadius = radius - strokeWidth / 2;
+    const circumference = normalizedRadius * 2 * Math.PI;
+
+    // Progress based on seconds (0-60)
+    const progress = (seconds / 60) * 100;
+    const strokeDashoffset = circumference - (progress / 100) * circumference;
+
     return (
-        <div className="glass-card p-8 mb-6 flex flex-col items-center">
-            {/* Breathing Circle Timer */}
-            <div className="relative mb-8 mt-4">
-                {/* Outer Glow Ring */}
-                <div
-                    className={`w-64 h-64 rounded-full flex items-center justify-center transition-all duration-500 ${isActive
-                            ? 'bg-white/40 border-4 border-primary-400 animate-breathe'
-                            : 'bg-white/20 border-4 border-slate-200'
-                        }`}
-                >
-                    {/* Inner Content */}
+        <div className="glass-card p-8 mb-6">
+            <div className="flex flex-col items-center">
+                {/* Circular Progress Timer */}
+                <div className="relative w-64 h-64 flex items-center justify-center">
+                    {/* SVG Ring */}
+                    <svg
+                        className="absolute inset-0 -rotate-90"
+                        width="100%"
+                        height="100%"
+                        viewBox={`0 0 ${radius * 2} ${radius * 2}`}
+                    >
+                        {/* Background Ring */}
+                        <circle
+                            cx={radius}
+                            cy={radius}
+                            r={normalizedRadius}
+                            fill="none"
+                            stroke="#e2e8f0"
+                            strokeWidth={strokeWidth}
+                            strokeLinecap="round"
+                        />
+                        {/* Gradient Definition */}
+                        <defs>
+                            <linearGradient id="progressGradient" x1="100%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stopColor="#bae6fd" />
+                                <stop offset="40%" stopColor="#7dd3fc" />
+                                <stop offset="70%" stopColor="#38bdf8" />
+                                <stop offset="100%" stopColor="#0284c7" />
+                            </linearGradient>
+                        </defs>
+                        {/* Progress Ring */}
+                        <circle
+                            cx={radius}
+                            cy={radius}
+                            r={normalizedRadius}
+                            fill="none"
+                            stroke="url(#progressGradient)"
+                            strokeWidth={strokeWidth}
+                            strokeLinecap="round"
+                            strokeDasharray={circumference}
+                            strokeDashoffset={isActive ? strokeDashoffset : circumference}
+                            className="transition-all duration-300"
+                        />
+                    </svg>
+
+                    {/* Center Content */}
                     <div className="text-center z-10">
-                        <div className={`text-6xl font-bold tracking-tight bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent transition-all duration-300 ${isActive ? 'scale-110' : ''}`}>
-                            {formatDuration(elapsed)}
+                        <div className="text-slate-700 font-bold tracking-tight">
+                            {hours > 0 ? (
+                                <span className="text-5xl">{String(hours).padStart(2, '0')}:{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}</span>
+                            ) : minutes > 0 ? (
+                                <>
+                                    <span className="text-6xl">{String(minutes).padStart(2, '0')}</span>
+                                    <span className="text-4xl">:{String(seconds).padStart(2, '0')}</span>
+                                </>
+                            ) : (
+                                <span className="text-7xl">{String(seconds).padStart(2, '0')}</span>
+                            )}
                         </div>
-                        {isActive && (
-                            <div className="mt-2 text-primary-600 font-medium animate-pulse flex items-center justify-center gap-2">
-                                <div className="w-2 h-2 bg-primary-500 rounded-full"></div>
-                                <span>Flow State</span>
-                            </div>
-                        )}
+                        <div className="text-slate-400 text-sm font-medium tracking-widest mt-1">
+                            {hours > 0 ? 'HOURS' : minutes > 0 ? 'MINUTES' : 'SECONDS'}
+                        </div>
                     </div>
                 </div>
 
-                {/* Decorative Ring (Optional) */}
-                {isActive && (
-                    <div className="absolute inset-0 rounded-full border-2 border-primary-200 animate-ping opacity-20"></div>
-                )}
-            </div>
-
-            <div className="text-center w-full max-w-md">
+                {/* Task Name */}
                 {taskName && (
-                    <div className="text-slate-600 text-lg font-medium mb-6 truncate px-4">
+                    <div className="mt-4 text-slate-400 text-sm truncate max-w-full px-4">
                         {taskName}
                     </div>
                 )}
 
-                <div className="flex gap-4 justify-center">
+                {/* Action Button */}
+                <div className="mt-6">
                     {!isActive ? (
                         <button
                             onClick={onStart}
                             disabled={!taskName}
-                            className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-lg px-8 py-4 rounded-2xl"
+                            className="w-14 h-14 rounded-full bg-gradient-to-r from-primary-500 to-primary-400 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center"
                         >
-                            <Play size={24} fill="currentColor" />
-                            <span>開始</span>
+                            <Play size={24} fill="currentColor" className="ml-0.5" />
                         </button>
                     ) : (
                         <button
                             onClick={onStop}
-                            className="bg-white/80 backdrop-blur text-red-500 border-2 border-red-100 font-medium px-8 py-4 rounded-2xl shadow-lg hover:shadow-xl hover:bg-red-50 hover:border-red-200 transition-all duration-300 hover:scale-105 active:scale-95 flex items-center gap-2 group"
+                            className="w-14 h-14 rounded-full bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 border-2 border-slate-200 hover:border-red-200 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center"
                         >
-                            <Square size={24} fill="currentColor" className="group-hover:scale-110 transition-transform" />
-                            <span>停止</span>
+                            <Square size={20} fill="currentColor" />
                         </button>
                     )}
                 </div>

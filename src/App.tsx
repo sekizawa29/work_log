@@ -40,6 +40,7 @@ function App() {
     stopTimer,
     deleteEntry,
     updateEntry,
+    deleteClient,
   } = useTimeTracking(session?.user.id);
 
   const [taskName, setTaskName] = useState('');
@@ -85,13 +86,9 @@ function App() {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <header className="mb-8 text-center animate-fade-in relative">
-          <div className="flex items-center justify-center gap-3 mb-2">
-            <TimerIcon size={40} className="text-primary-600" />
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">
-              Time Tracker
-            </h1>
+          <div className="flex items-center justify-center">
+            <img src="/ticlog-logo.png" alt="Ticlog" className="h-15" />
           </div>
-          <p className="text-slate-600">シンプルで美しい時間管理</p>
 
           <button
             onClick={handleSignOut}
@@ -143,6 +140,7 @@ function App() {
                 onClientChange={setSelectedClientId}
                 disabled={!!activeEntry}
                 recentTaskNames={recentTaskNames}
+                onDeleteClient={deleteClient}
               />
             </div>
 

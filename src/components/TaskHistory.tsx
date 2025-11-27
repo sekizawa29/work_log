@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Trash2, Clock, Pencil } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Trash2, Clock, Pencil, ChevronDown, ChevronRight } from 'lucide-react';
 import type { TimeEntry, Client } from '../types';
 import { formatDuration, formatDateTime } from '../utils/helpers';
 import { EditEntryModal } from './EditEntryModal';
@@ -14,6 +14,7 @@ interface TaskHistoryProps {
 export const TaskHistory = ({ entries, clients, onDelete, onUpdate }: TaskHistoryProps) => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
     const getClientName = (clientId: string) => {
         return clients.find((c) => c.id === clientId)?.name || '不明';
@@ -28,6 +29,18 @@ export const TaskHistory = ({ entries, clients, onDelete, onUpdate }: TaskHistor
         setIsEditModalOpen(true);
     };
 
+    const toggleGroup = (key: string) => {
+        setExpandedGroups(prev => {
+            const next = new Set(prev);
+            if (next.has(key)) {
+                next.delete(key);
+            } else {
+                next.add(key);
+            }
+            return next;
+        });
+    };
+
     // Group entries by task name and client
     const groupedTasks = entries.reduce((acc, entry) => {
         const key = `${entry.taskName}-${entry.clientId}`;
@@ -37,17 +50,38 @@ export const TaskHistory = ({ entries, clients, onDelete, onUpdate }: TaskHistor
                 clientId: entry.clientId,
                 totalDuration: 0,
                 entries: [],
+                hasActiveEntry: false,
             };
         }
         acc[key].totalDuration += entry.duration;
         acc[key].entries.push(entry);
+        if (entry.endTime === null) {
+            acc[key].hasActiveEntry = true;
+        }
         return acc;
-    }, {} as Record<string, { taskName: string; clientId: string; totalDuration: number; entries: TimeEntry[] }>);
+    }, {} as Record<string, { taskName: string; clientId: string; totalDuration: number; entries: TimeEntry[]; hasActiveEntry: boolean }>);
+
+    // Expand groups with active entries on mount or when entries change
+    useEffect(() => {
+        const newExpanded = new Set<string>();
+        Object.entries(groupedTasks).forEach(([key, task]) => {
+            if (task.hasActiveEntry) {
+                newExpanded.add(key);
+            }
+        });
+
+        if (newExpanded.size > 0) {
+            setExpandedGroups(prev => {
+                const next = new Set(prev);
+                newExpanded.forEach(key => next.add(key));
+                return next;
+            });
+        }
+    }, [entries]);
 
     return (
         <div className="glass-card p-6">
-            <h2 className="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                <Clock size={24} />
+            <h2 className="text-2xl font-bold text-slate-800 mb-6">
                 作業履歴
             </h2>
 
@@ -57,57 +91,73 @@ export const TaskHistory = ({ entries, clients, onDelete, onUpdate }: TaskHistor
                     <p>まだ記録がありません</p>
                 </div>
             ) : (
-                <div className="space-y-6">
-                    {Object.values(groupedTasks).map((task) => (
-                        <div key={`${task.taskName}-${task.clientId}`} className="border-l-4 pl-4 py-2" style={{ borderColor: getClientColor(task.clientId) }}>
-                            <div className="flex justify-between items-start mb-3">
-                                <div>
-                                    <h3 className="font-semibold text-lg text-slate-800">{task.taskName}</h3>
-                                    <p className="text-sm text-slate-500">{getClientName(task.clientId)}</p>
+                <div className="space-y-4">
+                    {Object.entries(groupedTasks).map(([key, task]) => (
+                        <div key={key} className="border border-slate-100 rounded-xl overflow-hidden bg-slate-50">
+                            <button
+                                onClick={() => toggleGroup(key)}
+                                className="w-full flex justify-between items-center p-4 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
+                            >
+                                <div className="flex items-center gap-3">
+                                    {expandedGroups.has(key) ? (
+                                        <ChevronDown size={20} className="text-slate-400" />
+                                    ) : (
+                                        <ChevronRight size={20} className="text-slate-400" />
+                                    )}
+                                    <div
+                                        className={`w-4 h-4 rounded-full ${task.hasActiveEntry ? 'animate-pulse-glow' : ''}`}
+                                        style={{ backgroundColor: getClientColor(task.clientId) }}
+                                    />
+                                    <div>
+                                        <h3 className="font-semibold text-slate-800">{task.taskName}</h3>
+                                        <p className="text-xs text-slate-500">{getClientName(task.clientId)}</p>
+                                    </div>
                                 </div>
                                 <div className="text-right">
-                                    <div className="text-2xl font-bold text-primary-600">
+                                    <div className="text-lg font-bold text-primary-600">
                                         {formatDuration(task.totalDuration)}
                                     </div>
-                                    <div className="text-xs text-slate-500">合計時間</div>
+                                    <div className="text-xs text-slate-500">{task.entries.length} 件の記録</div>
                                 </div>
-                            </div>
+                            </button>
 
-                            <div className="space-y-2">
-                                {task.entries.map((entry) => (
-                                    <div
-                                        key={entry.id}
-                                        className="flex justify-between items-center bg-white/50 rounded-lg p-3 hover:bg-white/80 transition-colors group"
-                                    >
-                                        <div className="flex-1">
-                                            <div className="text-sm text-slate-600">
-                                                {formatDateTime(entry.startTime)}
+                            <div className={`accordion-content ${expandedGroups.has(key) ? 'expanded' : ''}`}>
+                                <div className={`bg-slate-50 p-2 space-y-2 ${expandedGroups.has(key) ? 'border-t border-slate-100' : ''}`}>
+                                    {task.entries.map((entry) => (
+                                        <div
+                                            key={entry.id}
+                                            className="flex justify-between items-center bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition-all group"
+                                        >
+                                            <div className="flex-1">
+                                                <div className="text-sm text-slate-600">
+                                                    {formatDateTime(entry.startTime)}
+                                                </div>
+                                                <div className="text-xs text-slate-400">
+                                                    {entry.date}
+                                                </div>
                                             </div>
-                                            <div className="text-xs text-slate-400">
-                                                {entry.date}
+                                            <div className="flex items-center gap-1">
+                                                <div className="font-semibold text-slate-700 mr-2">
+                                                    {formatDuration(entry.duration)}
+                                                </div>
+                                                <button
+                                                    onClick={() => handleEditClick(entry)}
+                                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-primary-600 p-2 rounded-lg hover:bg-primary-50"
+                                                    title="編集"
+                                                >
+                                                    <Pencil size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => onDelete(entry.id)}
+                                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50"
+                                                    title="削除"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-1">
-                                            <div className="font-semibold text-slate-700 mr-2">
-                                                {formatDuration(entry.duration)}
-                                            </div>
-                                            <button
-                                                onClick={() => handleEditClick(entry)}
-                                                className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-primary-600 p-2 rounded-lg hover:bg-primary-50"
-                                                title="編集"
-                                            >
-                                                <Pencil size={16} />
-                                            </button>
-                                            <button
-                                                onClick={() => onDelete(entry.id)}
-                                                className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50"
-                                                title="削除"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
                         </div>
                     ))}

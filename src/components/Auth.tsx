@@ -19,6 +19,9 @@ export const Auth = () => {
                 const { error } = await supabase.auth.signUp({
                     email,
                     password,
+                    options: {
+                        emailRedirectTo: 'https://work-log-nu.vercel.app/',
+                    },
                 });
                 if (error) throw error;
                 setMessage({ type: 'success', text: '確認メールを送信しました。メール内のリンクをクリックして登録を完了してください。' });
@@ -37,11 +40,11 @@ export const Auth = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
+        <div className="min-h-screen flex items-center justify-center p-4">
             <div className="glass-card w-full max-w-md p-8 animate-fade-in">
-                <h2 className="text-3xl font-bold text-center mb-2 bg-gradient-to-r from-primary-600 to-primary-400 bg-clip-text text-transparent">
-                    Work Log
-                </h2>
+                <div className="flex justify-center mb-2">
+                    <img src="/ticlog-logo.png" alt="Ticlog" className="h-10" />
+                </div>
                 <p className="text-center text-slate-500 mb-8">
                     {isSignUp ? 'アカウントを作成して記録を始めましょう' : 'おかえりなさい'}
                 </p>
