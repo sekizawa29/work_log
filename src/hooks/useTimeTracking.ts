@@ -62,6 +62,7 @@ export const useTimeTracking = (userId?: string) => {
                     startTime: new Date(e.start_time).getTime(),
                     endTime: e.end_time ? new Date(e.end_time).getTime() : null,
                     duration: e.duration || 0,
+                    targetDuration: e.target_duration,
                     date: formatDate(new Date(e.start_time)),
                 }));
 
@@ -112,7 +113,7 @@ export const useTimeTracking = (userId?: string) => {
         return null;
     }, [userId]);
 
-    const startTimer = useCallback(async (taskName: string, clientId: string) => {
+    const startTimer = useCallback(async (taskName: string, clientId: string, targetDuration?: number) => {
         if (!userId) return;
 
         const startTime = new Date();
@@ -124,6 +125,7 @@ export const useTimeTracking = (userId?: string) => {
             start_time: startTime.toISOString(),
             end_time: null,
             duration: 0,
+            target_duration: targetDuration || null,
         };
 
         // Optimistic update
@@ -135,6 +137,7 @@ export const useTimeTracking = (userId?: string) => {
             startTime: startTime.getTime(),
             endTime: null,
             duration: 0,
+            targetDuration,
             date: formatDate(startTime),
         };
 
@@ -163,6 +166,7 @@ export const useTimeTracking = (userId?: string) => {
                 startTime: new Date(data.start_time).getTime(),
                 endTime: null,
                 duration: 0,
+                targetDuration: data.target_duration,
                 date: formatDate(new Date(data.start_time)),
             };
             setActiveEntry(realEntry);

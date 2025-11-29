@@ -27,6 +27,7 @@ create table time_entries (
   start_time timestamp with time zone not null,
   end_time timestamp with time zone,
   duration integer, -- in seconds
+  target_duration integer, -- in seconds (optional target for countdown)
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 

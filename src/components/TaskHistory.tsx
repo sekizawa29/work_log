@@ -15,6 +15,24 @@ export const TaskHistory = ({ entries, clients, onDelete, onUpdate }: TaskHistor
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+    const [now, setNow] = useState(Date.now());
+
+    // Update current time every second for active entries
+    const hasActiveEntry = entries.some(e => e.endTime === null);
+    useEffect(() => {
+        if (!hasActiveEntry) return;
+        const interval = setInterval(() => {
+            setNow(Date.now());
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [hasActiveEntry]);
+
+    const getEntryDuration = (entry: TimeEntry): number => {
+        if (entry.endTime === null) {
+            return Math.floor((now - entry.startTime) / 1000);
+        }
+        return entry.duration;
+    };
 
     const getClientName = (clientId: string) => {
         return clients.find((c) => c.id === clientId)?.name || '不明';
@@ -53,7 +71,7 @@ export const TaskHistory = ({ entries, clients, onDelete, onUpdate }: TaskHistor
                 hasActiveEntry: false,
             };
         }
-        acc[key].totalDuration += entry.duration;
+        acc[key].totalDuration += getEntryDuration(entry);
         acc[key].entries.push(entry);
         if (entry.endTime === null) {
             acc[key].hasActiveEntry = true;
@@ -122,8 +140,9 @@ export const TaskHistory = ({ entries, clients, onDelete, onUpdate }: TaskHistor
                             </button>
 
                             <div className={`accordion-content ${expandedGroups.has(key) ? 'expanded' : ''}`}>
-                                <div className={`bg-slate-50 p-2 space-y-2 ${expandedGroups.has(key) ? 'border-t border-slate-100' : ''}`}>
-                                    {task.entries.map((entry) => (
+                                <div>
+                                    <div className={`bg-slate-50 p-2 space-y-2 ${expandedGroups.has(key) ? 'border-t border-slate-100' : ''}`}>
+                                        {task.entries.map((entry) => (
                                         <div
                                             key={entry.id}
                                             className="flex justify-between items-center bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition-all group"
@@ -132,13 +151,10 @@ export const TaskHistory = ({ entries, clients, onDelete, onUpdate }: TaskHistor
                                                 <div className="text-sm text-slate-600">
                                                     {formatDateTime(entry.startTime)}
                                                 </div>
-                                                <div className="text-xs text-slate-400">
-                                                    {entry.date}
-                                                </div>
                                             </div>
                                             <div className="flex items-center gap-1">
                                                 <div className="font-semibold text-slate-700 mr-2">
-                                                    {formatDuration(entry.duration)}
+                                                    {formatDuration(getEntryDuration(entry))}
                                                 </div>
                                                 <button
                                                     onClick={() => handleEditClick(entry)}
@@ -156,7 +172,8 @@ export const TaskHistory = ({ entries, clients, onDelete, onUpdate }: TaskHistor
                                                 </button>
                                             </div>
                                         </div>
-                                    ))}
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         </div>

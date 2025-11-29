@@ -45,17 +45,22 @@ function App() {
 
   const [taskName, setTaskName] = useState('');
   const [selectedClientId, setSelectedClientId] = useState('');
+  const [targetSeconds, setTargetSeconds] = useState(0);
+  const [timerMode, setTimerMode] = useState<'free' | 'goal'>('free');
   const [activeTab, setActiveTab] = useState<'tracker' | 'analytics'>('tracker');
 
   const handleStart = () => {
     if (taskName.trim() && selectedClientId) {
-      startTimer(taskName.trim(), selectedClientId);
+      const targetDuration = timerMode === 'goal' && targetSeconds > 0 ? targetSeconds : undefined;
+      startTimer(taskName.trim(), selectedClientId, targetDuration);
     }
   };
 
   const handleStop = () => {
     stopTimer();
     setTaskName('');
+    setTargetSeconds(0);
+    setTimerMode('free');
   };
 
   const handleAddClient = async (name: string) => {
@@ -150,8 +155,13 @@ function App() {
                 isActive={!!activeEntry}
                 startTime={activeEntry?.startTime || null}
                 taskName={activeEntry?.taskName || taskName}
+                targetDuration={activeEntry?.targetDuration}
                 onStart={handleStart}
                 onStop={handleStop}
+                timerMode={timerMode}
+                onModeChange={setTimerMode}
+                targetSeconds={targetSeconds}
+                onTargetSecondsChange={setTargetSeconds}
               />
             </div>
 

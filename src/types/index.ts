@@ -11,6 +11,7 @@ export interface TimeEntry {
     startTime: number; // Unix timestamp
     endTime: number | null; // null if still running
     duration: number; // in seconds
+    targetDuration?: number; // in seconds, optional
     date: string; // ISO date string (YYYY-MM-DD)
 }
 

@@ -15,7 +15,6 @@ export const formatDate = (date: Date): string => {
 
 export const formatDateTime = (timestamp: number): string => {
     return new Date(timestamp).toLocaleString('ja-JP', {
-        year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
