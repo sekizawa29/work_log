@@ -48,19 +48,48 @@ function App() {
   const [targetSeconds, setTargetSeconds] = useState(0);
   const [timerMode, setTimerMode] = useState<'free' | 'goal'>('free');
   const [activeTab, setActiveTab] = useState<'tracker' | 'analytics'>('tracker');
+  const [isPaused, setIsPaused] = useState(false);
+  const [pausedAt, setPausedAt] = useState<number | null>(null);
+  const [totalPauseDuration, setTotalPauseDuration] = useState(0);
 
   const handleStart = () => {
     if (taskName.trim() && selectedClientId) {
       const targetDuration = timerMode === 'goal' && targetSeconds > 0 ? targetSeconds : undefined;
       startTimer(taskName.trim(), selectedClientId, targetDuration);
+      setIsPaused(false);
+      setPausedAt(null);
+      setTotalPauseDuration(0);
     }
   };
 
   const handleStop = () => {
-    stopTimer();
+    let finalTotalPauseDuration = totalPauseDuration;
+    if (isPaused && pausedAt) {
+      const currentPauseDuration = Math.floor((Date.now() - pausedAt) / 1000);
+      finalTotalPauseDuration += currentPauseDuration;
+    }
+
+    stopTimer(finalTotalPauseDuration);
     setTaskName('');
     setTargetSeconds(0);
     setTimerMode('free');
+    setIsPaused(false);
+    setPausedAt(null);
+    setTotalPauseDuration(0);
+  };
+
+  const handlePause = () => {
+    setIsPaused(true);
+    setPausedAt(Date.now());
+  };
+
+  const handleResume = () => {
+    if (pausedAt) {
+      const pauseDuration = Math.floor((Date.now() - pausedAt) / 1000);
+      setTotalPauseDuration(prev => prev + pauseDuration);
+    }
+    setIsPaused(false);
+    setPausedAt(null);
   };
 
   const handleAddClient = async (name: string) => {
@@ -162,6 +191,11 @@ function App() {
                 onModeChange={setTimerMode}
                 targetSeconds={targetSeconds}
                 onTargetSecondsChange={setTargetSeconds}
+                isPaused={isPaused}
+                pausedAt={pausedAt}
+                totalPauseDuration={totalPauseDuration}
+                onPause={handlePause}
+                onResume={handleResume}
               />
             </div>
 
@@ -172,12 +206,21 @@ function App() {
                 clients={clients}
                 onDelete={deleteEntry}
                 onUpdate={updateEntry}
+                isPaused={isPaused}
+                pausedAt={pausedAt}
+                totalPauseDuration={totalPauseDuration}
               />
             </div>
           </>
         ) : (
           <div className="animate-fade-in">
-            <Analytics entries={entries} clients={clients} />
+            <Analytics
+              entries={entries}
+              clients={clients}
+              isPaused={isPaused}
+              pausedAt={pausedAt}
+              totalPauseDuration={totalPauseDuration}
+            />
           </div>
         )}
       </div>

@@ -9,6 +9,9 @@ type DateFilter = 'all' | 'today' | 'thisWeek' | 'thisMonth';
 interface AnalyticsProps {
     entries: TimeEntry[];
     clients: Client[];
+    isPaused?: boolean;
+    pausedAt?: number | null;
+    totalPauseDuration?: number;
 }
 
 const getDateRange = (filter: DateFilter): { start: Date; end: Date } | null => {
@@ -59,23 +62,21 @@ const filterLabels: Record<DateFilter, string> = {
     thisMonth: 'Month',
 };
 
-export const Analytics = ({ entries, clients }: AnalyticsProps) => {
+export const Analytics = ({ entries, clients, isPaused = false, pausedAt = null, totalPauseDuration = 0 }: AnalyticsProps) => {
     const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
     const [dateFilter, setDateFilter] = useState<DateFilter>('thisMonth');
     const [now, setNow] = useState(Date.now());
     const [hasAnimated, setHasAnimated] = useState(false);
 
-    // Update current time every second for active entries
-    // Update current time every second for active entries
-    // Only start updating AFTER the initial animation is done to prevent stuttering
+    // Update current time every second for active entries (but not when paused)
     const hasActiveEntry = entries.some(e => e.endTime === null);
     React.useEffect(() => {
-        if (!hasActiveEntry || !hasAnimated) return;
+        if (!hasActiveEntry || !hasAnimated || isPaused) return;
         const interval = setInterval(() => {
             setNow(Date.now());
         }, 1000);
         return () => clearInterval(interval);
-    }, [hasActiveEntry, hasAnimated]);
+    }, [hasActiveEntry, hasAnimated, isPaused]);
 
     // Disable animation after initial render to prevent label flickering
     useEffect(() => {
@@ -89,7 +90,9 @@ export const Analytics = ({ entries, clients }: AnalyticsProps) => {
 
     const getEntryDuration = (entry: TimeEntry): number => {
         if (entry.endTime === null) {
-            return Math.floor((now - entry.startTime) / 1000);
+            const effectiveNow = isPaused && pausedAt ? pausedAt : now;
+            const rawElapsed = Math.floor((effectiveNow - entry.startTime) / 1000);
+            return Math.max(0, rawElapsed - totalPauseDuration);
         }
         return entry.duration;
     };
@@ -203,10 +206,11 @@ export const Analytics = ({ entries, clients }: AnalyticsProps) => {
                 </div>
             ) : (
                 <div className="space-y-8">
-                    {/* Summary */}
-                    <div className="bg-gradient-to-br from-primary-500 to-primary-600 text-white p-6 rounded-xl shadow-lg">
-                        <div className="text-sm opacity-90">総作業時間</div>
-                        <div className="text-3xl font-bold mt-2">{formatDuration(totalHours)}</div>
+                    {/* Summary - Total Work Time */}
+                    <div className="flex flex-col items-center py-6">
+                        <div className="text-sm font-medium text-slate-400 tracking-wider uppercase mb-2">総作業時間</div>
+                        <div className="text-5xl font-bold text-slate-700 tracking-tight">{formatDuration(totalHours)}</div>
+                        <div className="w-16 h-1 bg-gradient-to-r from-primary-400 to-primary-500 rounded-full mt-4"></div>
                     </div>
 
                     {/* Charts */}

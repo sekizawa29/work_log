@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { TimeEntry, Client } from '../types';
 import { generateId, formatDate } from '../utils/helpers';
 import { generateClientColor } from '../utils/colors';
@@ -174,11 +174,12 @@ export const useTimeTracking = (userId?: string) => {
         }
     }, [userId]);
 
-    const stopTimer = useCallback(async () => {
+    const stopTimer = useCallback(async (totalPauseDuration: number = 0) => {
         if (!activeEntry || !userId) return;
 
         const endTime = new Date();
-        const duration = Math.floor((endTime.getTime() - activeEntry.startTime) / 1000);
+        const rawDuration = Math.floor((endTime.getTime() - activeEntry.startTime) / 1000);
+        const duration = Math.max(0, rawDuration - totalPauseDuration);
 
         // Optimistic update
         const completedEntry: TimeEntry = {
@@ -240,9 +241,27 @@ export const useTimeTracking = (userId?: string) => {
 
     const recentTaskNames = Array.from(new Set(entries.map(e => e.taskName))).slice(0, 10);
 
+    // Sort clients by most recent usage
+    const sortedClients = useMemo(() => {
+        // Create a map of clientId to most recent usage time
+        const clientLastUsed = new Map<string, number>();
+        entries.forEach(entry => {
+            if (!clientLastUsed.has(entry.clientId)) {
+                clientLastUsed.set(entry.clientId, entry.startTime);
+            }
+        });
+
+        // Sort clients: recently used first, then unused clients
+        return [...clients].sort((a, b) => {
+            const aTime = clientLastUsed.get(a.id) ?? 0;
+            const bTime = clientLastUsed.get(b.id) ?? 0;
+            return bTime - aTime; // Descending order (most recent first)
+        });
+    }, [clients, entries]);
+
     return {
         entries,
-        clients,
+        clients: sortedClients,
         activeEntry,
         recentTaskNames,
         addClient,

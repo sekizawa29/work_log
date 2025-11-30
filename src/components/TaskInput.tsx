@@ -1,8 +1,38 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
+import * as wanakana from 'wanakana';
 import type { Client } from '../types';
 
-import { Trash2 } from 'lucide-react';
+// Japanese text matching helper
+const matchesJapanese = (input: string, target: string): boolean => {
+    if (!input || !target) return false;
+
+    const lowerInput = input.toLowerCase();
+    const lowerTarget = target.toLowerCase();
+
+    // Direct match
+    if (lowerTarget.includes(lowerInput)) return true;
+
+    // Convert input to hiragana and katakana for comparison
+    const inputHiragana = wanakana.toHiragana(input);
+    const inputKatakana = wanakana.toKatakana(input);
+    const inputRomaji = wanakana.toRomaji(input);
+
+    // Convert target to hiragana and romaji for comparison
+    const targetHiragana = wanakana.toHiragana(target);
+    const targetKatakana = wanakana.toKatakana(target);
+    const targetRomaji = wanakana.toRomaji(target);
+
+    // Check various combinations
+    return (
+        targetHiragana.includes(inputHiragana) ||
+        targetKatakana.includes(inputKatakana) ||
+        targetHiragana.includes(inputKatakana) ||
+        targetKatakana.includes(inputHiragana) ||
+        targetRomaji.toLowerCase().includes(inputRomaji.toLowerCase()) ||
+        lowerTarget.includes(inputRomaji.toLowerCase())
+    );
+};
 
 interface TaskInputProps {
     clients: Client[];
@@ -55,9 +85,12 @@ export const TaskInput = ({
         }
     };
 
-    const filteredSuggestions = recentTaskNames.filter(
-        name => name.toLowerCase().includes(taskName.toLowerCase()) && name !== taskName
-    );
+    const filteredSuggestions = recentTaskNames.filter(name => {
+        if (name === taskName) return false;
+        // Show all when input is empty, filter when typing
+        if (!taskName.trim()) return true;
+        return matchesJapanese(taskName, name);
+    });
 
     const selectedClient = clients.find(c => c.id === selectedClientId);
 

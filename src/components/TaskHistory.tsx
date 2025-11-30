@@ -9,27 +9,33 @@ interface TaskHistoryProps {
     clients: Client[];
     onDelete: (id: string) => void;
     onUpdate: (id: string, startTime: number, endTime: number | null) => void;
+    isPaused?: boolean;
+    pausedAt?: number | null;
+    totalPauseDuration?: number;
 }
 
-export const TaskHistory = ({ entries, clients, onDelete, onUpdate }: TaskHistoryProps) => {
+export const TaskHistory = ({ entries, clients, onDelete, onUpdate, isPaused = false, pausedAt = null, totalPauseDuration = 0 }: TaskHistoryProps) => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
     const [now, setNow] = useState(Date.now());
+    const [visibleCount, setVisibleCount] = useState(5);
 
-    // Update current time every second for active entries
+    // Update current time every second for active entries (but not when paused)
     const hasActiveEntry = entries.some(e => e.endTime === null);
     useEffect(() => {
-        if (!hasActiveEntry) return;
+        if (!hasActiveEntry || isPaused) return;
         const interval = setInterval(() => {
             setNow(Date.now());
         }, 1000);
         return () => clearInterval(interval);
-    }, [hasActiveEntry]);
+    }, [hasActiveEntry, isPaused]);
 
     const getEntryDuration = (entry: TimeEntry): number => {
         if (entry.endTime === null) {
-            return Math.floor((now - entry.startTime) / 1000);
+            const effectiveNow = isPaused && pausedAt ? pausedAt : now;
+            const rawElapsed = Math.floor((effectiveNow - entry.startTime) / 1000);
+            return Math.max(0, rawElapsed - totalPauseDuration);
         }
         return entry.duration;
     };
@@ -110,7 +116,7 @@ export const TaskHistory = ({ entries, clients, onDelete, onUpdate }: TaskHistor
                 </div>
             ) : (
                 <div className="space-y-4">
-                    {Object.entries(groupedTasks).map(([key, task]) => (
+                    {Object.entries(groupedTasks).slice(0, visibleCount).map(([key, task]) => (
                         <div key={key} className="border border-slate-100 rounded-xl overflow-hidden bg-slate-50">
                             <button
                                 onClick={() => toggleGroup(key)}
@@ -143,41 +149,53 @@ export const TaskHistory = ({ entries, clients, onDelete, onUpdate }: TaskHistor
                                 <div>
                                     <div className={`bg-slate-50 p-2 space-y-2 ${expandedGroups.has(key) ? 'border-t border-slate-100' : ''}`}>
                                         {task.entries.map((entry) => (
-                                        <div
-                                            key={entry.id}
-                                            className="flex justify-between items-center bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition-all group"
-                                        >
-                                            <div className="flex-1">
-                                                <div className="text-sm text-slate-600">
-                                                    {formatDateTime(entry.startTime)}
+                                            <div
+                                                key={entry.id}
+                                                className="flex justify-between items-center bg-white rounded-lg p-3 shadow-sm hover:shadow-md transition-all group"
+                                            >
+                                                <div className="flex-1">
+                                                    <div className="text-sm text-slate-600">
+                                                        {formatDateTime(entry.startTime)}
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <div className="font-semibold text-slate-700 mr-2">
+                                                        {formatDuration(getEntryDuration(entry))}
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleEditClick(entry)}
+                                                        className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-primary-600 p-2 rounded-lg hover:bg-primary-50"
+                                                        title="編集"
+                                                    >
+                                                        <Pencil size={16} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => onDelete(entry.id)}
+                                                        className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50"
+                                                        title="削除"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-1">
-                                                <div className="font-semibold text-slate-700 mr-2">
-                                                    {formatDuration(getEntryDuration(entry))}
-                                                </div>
-                                                <button
-                                                    onClick={() => handleEditClick(entry)}
-                                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-primary-600 p-2 rounded-lg hover:bg-primary-50"
-                                                    title="編集"
-                                                >
-                                                    <Pencil size={16} />
-                                                </button>
-                                                <button
-                                                    onClick={() => onDelete(entry.id)}
-                                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50"
-                                                    title="削除"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
-                                        </div>
                                         ))}
                                     </div>
                                 </div>
                             </div>
                         </div>
                     ))}
+
+                    {/* More Button */}
+                    {Object.keys(groupedTasks).length > visibleCount && (
+                        <button
+                            onClick={() => setVisibleCount(prev => prev + 5)}
+                            className="w-full py-4 flex items-center justify-center gap-3 text-slate-400 hover:text-slate-600 transition-colors"
+                        >
+                            <span className="w-12 h-0.5 bg-slate-300 rounded-full"></span>
+                            <span className="text-sm font-bold tracking-widest">more</span>
+                            <span className="w-12 h-0.5 bg-slate-300 rounded-full"></span>
+                        </button>
+                    )}
                 </div>
             )}
 

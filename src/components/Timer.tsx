@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Play, Square, ArrowLeftRight } from 'lucide-react';
+import { Play, Square, ArrowLeftRight, Plus, Minus, Pause } from 'lucide-react';
 import { useTimer } from '../hooks/useTimer';
 
 type TimerMode = 'free' | 'goal';
@@ -15,6 +15,11 @@ interface TimerProps {
     onModeChange: (mode: TimerMode) => void;
     targetSeconds: number;
     onTargetSecondsChange: (seconds: number) => void;
+    isPaused: boolean;
+    pausedAt: number | null;
+    totalPauseDuration: number;
+    onPause: () => void;
+    onResume: () => void;
 }
 
 export const Timer = ({
@@ -28,8 +33,18 @@ export const Timer = ({
     onModeChange,
     targetSeconds,
     onTargetSecondsChange,
+    isPaused,
+    pausedAt,
+    totalPauseDuration,
+    onPause,
+    onResume,
 }: TimerProps) => {
-    const elapsed = useTimer(isActive, startTime);
+    const effectiveNow = isPaused && pausedAt ? pausedAt : Date.now();
+    // Use useTimer to trigger re-renders
+    useTimer(isActive, startTime);
+
+    const calculatedRawElapsed = startTime ? Math.floor((effectiveNow - startTime) / 1000) : 0;
+    const elapsed = Math.max(0, calculatedRawElapsed - totalPauseDuration);
 
     // Input state for goal timer editing
     const [inputHours, setInputHours] = useState('00');
@@ -55,39 +70,6 @@ export const Timer = ({
         const seconds = parseInt(s, 10) || 0;
         const totalSeconds = hours * 3600 + minutes * 60 + seconds;
         onTargetSecondsChange(totalSeconds);
-    };
-
-    const handleHoursChange = (value: string) => {
-        const numValue = value.replace(/\D/g, '').slice(0, 2);
-        setInputHours(numValue);
-        updateTargetFromInputs(numValue, inputMinutes, inputSeconds);
-    };
-
-    const handleMinutesChange = (value: string) => {
-        const numValue = value.replace(/\D/g, '').slice(0, 2);
-        const clamped = Math.min(parseInt(numValue, 10) || 0, 59);
-        const formatted = String(clamped).padStart(2, '0');
-        setInputMinutes(numValue.length === 0 ? '' : formatted);
-        updateTargetFromInputs(inputHours, numValue, inputSeconds);
-    };
-
-    const handleSecondsChange = (value: string) => {
-        const numValue = value.replace(/\D/g, '').slice(0, 2);
-        const clamped = Math.min(parseInt(numValue, 10) || 0, 59);
-        const formatted = String(clamped).padStart(2, '0');
-        setInputSeconds(numValue.length === 0 ? '' : formatted);
-        updateTargetFromInputs(inputHours, inputMinutes, numValue);
-    };
-
-    const handleInputBlur = (type: 'hours' | 'minutes' | 'seconds') => {
-        // Pad with zeros on blur
-        if (type === 'hours') {
-            setInputHours(String(parseInt(inputHours, 10) || 0).padStart(2, '0'));
-        } else if (type === 'minutes') {
-            setInputMinutes(String(Math.min(parseInt(inputMinutes, 10) || 0, 59)).padStart(2, '0'));
-        } else {
-            setInputSeconds(String(Math.min(parseInt(inputSeconds, 10) || 0, 59)).padStart(2, '0'));
-        }
     };
 
     // Calculate display values
@@ -160,35 +142,104 @@ export const Timer = ({
     // Check if goal mode is editable (not active and in goal mode)
     const isGoalEditable = !isActive && timerMode === 'goal';
 
+    // Increment/decrement handlers
+    const incrementHours = () => {
+        const h = Math.min((parseInt(inputHours, 10) || 0) + 1, 99);
+        const newValue = String(h).padStart(2, '0');
+        setInputHours(newValue);
+        updateTargetFromInputs(newValue, inputMinutes, inputSeconds);
+    };
+    const decrementHours = () => {
+        const h = Math.max((parseInt(inputHours, 10) || 0) - 1, 0);
+        const newValue = String(h).padStart(2, '0');
+        setInputHours(newValue);
+        updateTargetFromInputs(newValue, inputMinutes, inputSeconds);
+    };
+    const incrementMinutes = () => {
+        const m = (parseInt(inputMinutes, 10) || 0) + 1;
+        if (m >= 60) {
+            incrementHours();
+            setInputMinutes('00');
+            updateTargetFromInputs(inputHours, '00', inputSeconds);
+        } else {
+            const newValue = String(m).padStart(2, '0');
+            setInputMinutes(newValue);
+            updateTargetFromInputs(inputHours, newValue, inputSeconds);
+        }
+    };
+    const decrementMinutes = () => {
+        const m = Math.max((parseInt(inputMinutes, 10) || 0) - 1, 0);
+        const newValue = String(m).padStart(2, '0');
+        setInputMinutes(newValue);
+        updateTargetFromInputs(inputHours, newValue, inputSeconds);
+    };
+    const incrementSeconds = () => {
+        const s = (parseInt(inputSeconds, 10) || 0) + 1;
+        if (s >= 60) {
+            incrementMinutes();
+            setInputSeconds('00');
+            updateTargetFromInputs(inputHours, inputMinutes, '00');
+        } else {
+            const newValue = String(s).padStart(2, '0');
+            setInputSeconds(newValue);
+            updateTargetFromInputs(inputHours, inputMinutes, newValue);
+        }
+    };
+    const decrementSeconds = () => {
+        const s = Math.max((parseInt(inputSeconds, 10) || 0) - 1, 0);
+        const newValue = String(s).padStart(2, '0');
+        setInputSeconds(newValue);
+        updateTargetFromInputs(inputHours, inputMinutes, newValue);
+    };
+
+    // Quick add handlers
+    const addMinutes = (mins: number) => {
+        const totalSecs = targetSeconds + mins * 60;
+        onTargetSecondsChange(totalSecs);
+    };
+    const addSeconds = (secs: number) => {
+        const totalSecs = targetSeconds + secs;
+        onTargetSecondsChange(totalSecs);
+    };
+    const clearTime = () => {
+        onTargetSecondsChange(0);
+    };
+
     // Render editable time input for goal mode
     const renderEditableTime = () => (
-        <div className="flex items-center font-bold text-slate-700">
-            <input
-                type="text"
-                value={inputHours}
-                onChange={(e) => handleHoursChange(e.target.value)}
-                onBlur={() => handleInputBlur('hours')}
-                className="w-14 text-center text-5xl bg-transparent focus:outline-none focus:bg-slate-100 rounded-lg transition-colors"
-                placeholder="00"
-            />
-            <span className="text-5xl">:</span>
-            <input
-                type="text"
-                value={inputMinutes}
-                onChange={(e) => handleMinutesChange(e.target.value)}
-                onBlur={() => handleInputBlur('minutes')}
-                className="w-14 text-center text-5xl bg-transparent focus:outline-none focus:bg-slate-100 rounded-lg transition-colors"
-                placeholder="00"
-            />
-            <span className="text-5xl">:</span>
-            <input
-                type="text"
-                value={inputSeconds}
-                onChange={(e) => handleSecondsChange(e.target.value)}
-                onBlur={() => handleInputBlur('seconds')}
-                className="w-14 text-center text-5xl bg-transparent focus:outline-none focus:bg-slate-100 rounded-lg transition-colors"
-                placeholder="00"
-            />
+        <div className="flex items-center gap-1">
+            {/* Hours */}
+            <div className="flex flex-col items-center">
+                <button onClick={incrementHours} className="p-1 text-slate-400 hover:text-slate-600 transition-colors">
+                    <Plus size={16} />
+                </button>
+                <span className="text-3xl font-bold text-slate-700 w-10 text-center">{inputHours}</span>
+                <button onClick={decrementHours} className="p-1 text-slate-400 hover:text-slate-600 transition-colors">
+                    <Minus size={16} />
+                </button>
+            </div>
+            <span className="text-3xl font-bold text-slate-700">:</span>
+            {/* Minutes */}
+            <div className="flex flex-col items-center">
+                <button onClick={incrementMinutes} className="p-1 text-slate-400 hover:text-slate-600 transition-colors">
+                    <Plus size={16} />
+                </button>
+                <span className="text-3xl font-bold text-slate-700 w-10 text-center">{inputMinutes}</span>
+                <button onClick={decrementMinutes} className="p-1 text-slate-400 hover:text-slate-600 transition-colors">
+                    <Minus size={16} />
+                </button>
+            </div>
+            <span className="text-3xl font-bold text-slate-700">:</span>
+            {/* Seconds */}
+            <div className="flex flex-col items-center">
+                <button onClick={incrementSeconds} className="p-1 text-slate-400 hover:text-slate-600 transition-colors">
+                    <Plus size={16} />
+                </button>
+                <span className="text-3xl font-bold text-slate-700 w-10 text-center">{inputSeconds}</span>
+                <button onClick={decrementSeconds} className="p-1 text-slate-400 hover:text-slate-600 transition-colors">
+                    <Minus size={16} />
+                </button>
+            </div>
         </div>
     );
 
@@ -210,10 +261,10 @@ export const Timer = ({
     );
 
     return (
-        <div className="glass-card p-8 mb-6 relative">
+        <div className="glass-card p-8 mb-6 relative min-h-[420px]">
             {/* Mode Selector - Top Left */}
             {!isActive && (
-                <div className="absolute top-4 left-4">
+                <div className="absolute top-4 left-4 flex flex-col gap-2">
                     <button
                         onClick={() => onModeChange(timerMode === 'free' ? 'goal' : 'free')}
                         className="flex items-center gap-2 text-slate-500 hover:text-slate-700 transition-colors"
@@ -223,6 +274,27 @@ export const Timer = ({
                             {timerMode === 'free' ? 'フリータイマー' : 'ゴールタイマー'}
                         </span>
                     </button>
+                    {/* Quick add buttons for goal mode */}
+                    <div className={`flex flex-col gap-1.5 transition-opacity duration-200 ${timerMode === 'goal' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+                        <button
+                            onClick={() => addMinutes(30)}
+                            className="px-3 py-1 text-xs text-slate-500 border border-slate-300 rounded-full hover:bg-slate-100 transition-colors"
+                        >
+                            +30分
+                        </button>
+                        <button
+                            onClick={() => addSeconds(30)}
+                            className="px-3 py-1 text-xs text-slate-500 border border-slate-300 rounded-full hover:bg-slate-100 transition-colors"
+                        >
+                            +30秒
+                        </button>
+                        <button
+                            onClick={clearTime}
+                            className="px-3 py-1 text-xs text-slate-500 border border-slate-300 rounded-full hover:bg-slate-100 transition-colors"
+                        >
+                            クリア
+                        </button>
+                    </div>
                 </div>
             )}
 
@@ -283,8 +355,8 @@ export const Timer = ({
                     </div>
                 )}
 
-                {/* Action Button */}
-                <div className="mt-6">
+                {/* Action Buttons */}
+                <div className="mt-6 flex items-center gap-4">
                     {!isActive ? (
                         <button
                             onClick={onStart}
@@ -294,12 +366,31 @@ export const Timer = ({
                             <Play size={24} fill="currentColor" className="ml-0.5" />
                         </button>
                     ) : (
-                        <button
-                            onClick={onStop}
-                            className="w-14 h-14 rounded-full bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 border-2 border-slate-200 hover:border-red-200 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center"
-                        >
-                            <Square size={20} fill="currentColor" />
-                        </button>
+                        <>
+                            {/* Pause/Resume Button */}
+                            {isPaused ? (
+                                <button
+                                    onClick={onResume}
+                                    className="w-14 h-14 rounded-full bg-gradient-to-r from-primary-500 to-primary-400 text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center"
+                                >
+                                    <Play size={24} fill="currentColor" className="ml-0.5" />
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={onPause}
+                                    className="w-14 h-14 rounded-full bg-slate-100 hover:bg-amber-50 text-slate-400 hover:text-amber-500 border-2 border-slate-200 hover:border-amber-200 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center"
+                                >
+                                    <Pause size={20} fill="currentColor" />
+                                </button>
+                            )}
+                            {/* Stop Button */}
+                            <button
+                                onClick={onStop}
+                                className="w-14 h-14 rounded-full bg-slate-100 hover:bg-red-50 text-slate-400 hover:text-red-500 border-2 border-slate-200 hover:border-red-200 transition-all duration-200 hover:scale-105 active:scale-95 flex items-center justify-center"
+                            >
+                                <Square size={20} fill="currentColor" />
+                            </button>
+                        </>
                     )}
                 </div>
             </div>
