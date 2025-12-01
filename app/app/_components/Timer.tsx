@@ -1,6 +1,8 @@
+'use client'
+
 import { useState, useEffect } from 'react';
 import { Play, Square, ArrowLeftRight, Plus, Minus, Pause } from 'lucide-react';
-import { useTimer } from '../hooks/useTimer';
+import { useTimer } from '@/hooks/useTimer';
 
 type TimerMode = 'free' | 'goal';
 

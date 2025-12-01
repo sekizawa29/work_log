@@ -1,6 +1,8 @@
+'use client'
+
 import { useState } from 'react';
 import { X, Save } from 'lucide-react';
-import type { TimeEntry } from '../types';
+import type { TimeEntry } from '@/types';
 
 interface EditEntryModalProps {
     isOpen: boolean;

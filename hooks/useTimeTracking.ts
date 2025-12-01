@@ -1,15 +1,17 @@
+'use client'
+
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import type { TimeEntry, Client } from '../types';
-import { generateId, formatDate } from '../utils/helpers';
-import { generateClientColor } from '../utils/colors';
-import { supabase } from '../lib/supabase';
-
-
+import type { TimeEntry, Client } from '@/types';
+import { generateId, formatDate } from '@/utils/helpers';
+import { generateClientColor } from '@/utils/colors';
+import { createClient } from '@/lib/supabase/client';
 
 export const useTimeTracking = (userId?: string) => {
     const [entries, setEntries] = useState<TimeEntry[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null);
+
+    const supabase = createClient();
 
     // Fetch data from Supabase
     useEffect(() => {
@@ -111,7 +113,7 @@ export const useTimeTracking = (userId?: string) => {
             return { id: data.id, name: data.name, color: data.color };
         }
         return null;
-    }, [userId]);
+    }, [userId, supabase]);
 
     const startTimer = useCallback(async (taskName: string, clientId: string, targetDuration?: number) => {
         if (!userId) return;
@@ -172,7 +174,7 @@ export const useTimeTracking = (userId?: string) => {
             setActiveEntry(realEntry);
             setEntries(prev => prev.map(e => e.id === tempId ? realEntry : e));
         }
-    }, [userId]);
+    }, [userId, supabase]);
 
     const stopTimer = useCallback(async (totalPauseDuration: number = 0) => {
         if (!activeEntry || !userId) return;
@@ -203,7 +205,7 @@ export const useTimeTracking = (userId?: string) => {
             console.error('Error stopping timer:', error);
             // Revert (this is tricky, maybe just show error)
         }
-    }, [activeEntry, userId]);
+    }, [activeEntry, userId, supabase]);
 
     const deleteEntry = useCallback(async (id: string) => {
         if (!userId) return;
@@ -220,7 +222,7 @@ export const useTimeTracking = (userId?: string) => {
             console.error('Error deleting entry:', error);
             // Fetch to revert?
         }
-    }, [userId]);
+    }, [userId, supabase]);
 
     const deleteClient = useCallback(async (id: string) => {
         if (!userId) return;
@@ -237,7 +239,7 @@ export const useTimeTracking = (userId?: string) => {
             console.error('Error deleting client:', error);
             // Fetch to revert?
         }
-    }, [userId]);
+    }, [userId, supabase]);
 
     const recentTaskNames = Array.from(new Set(entries.map(e => e.taskName))).slice(0, 10);
 
@@ -259,6 +261,42 @@ export const useTimeTracking = (userId?: string) => {
         });
     }, [clients, entries]);
 
+    const updateEntry = useCallback(async (id: string, startTime: number, endTime: number | null) => {
+        if (!userId) return;
+
+        const duration = endTime ? Math.floor((endTime - startTime) / 1000) : 0;
+        const date = formatDate(new Date(startTime));
+
+        // Optimistic update
+        setEntries(prev => prev.map(e => {
+            if (e.id === id) {
+                return {
+                    ...e,
+                    startTime,
+                    endTime,
+                    duration,
+                    date
+                };
+            }
+            return e;
+        }));
+
+        const { error } = await supabase
+            .from('time_entries')
+            .update({
+                start_time: new Date(startTime).toISOString(),
+                end_time: endTime ? new Date(endTime).toISOString() : null,
+                duration
+            })
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error updating entry:', error);
+            // Revert logic could be complex, for now just log error
+            // Ideally we should fetch the original data back
+        }
+    }, [userId, supabase]);
+
     return {
         entries,
         clients: sortedClients,
@@ -269,40 +307,6 @@ export const useTimeTracking = (userId?: string) => {
         stopTimer,
         deleteEntry,
         deleteClient,
-        updateEntry: async (id: string, startTime: number, endTime: number | null) => {
-            if (!userId) return;
-
-            const duration = endTime ? Math.floor((endTime - startTime) / 1000) : 0;
-            const date = formatDate(new Date(startTime));
-
-            // Optimistic update
-            setEntries(prev => prev.map(e => {
-                if (e.id === id) {
-                    return {
-                        ...e,
-                        startTime,
-                        endTime,
-                        duration,
-                        date
-                    };
-                }
-                return e;
-            }));
-
-            const { error } = await supabase
-                .from('time_entries')
-                .update({
-                    start_time: new Date(startTime).toISOString(),
-                    end_time: endTime ? new Date(endTime).toISOString() : null,
-                    duration
-                })
-                .eq('id', id);
-
-            if (error) {
-                console.error('Error updating entry:', error);
-                // Revert logic could be complex, for now just log error
-                // Ideally we should fetch the original data back
-            }
-        },
+        updateEntry,
     };
 };

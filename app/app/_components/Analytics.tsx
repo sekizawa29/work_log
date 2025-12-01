@@ -1,8 +1,10 @@
+'use client'
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import type { TimeEntry, Client } from '../types';
-import { formatDuration } from '../utils/helpers';
+import type { TimeEntry, Client } from '@/types';
+import { formatDuration } from '@/utils/helpers';
 
 type DateFilter = 'all' | 'today' | 'thisWeek' | 'thisMonth';
 

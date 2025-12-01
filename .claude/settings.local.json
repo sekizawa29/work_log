@@ -5,7 +5,13 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(dir:*)",
+      "Bash(mkdir:*)",
+      "Bash(xcopy:*)",
+      "Bash(copy .env.local _src_backup)",
+      "Bash(npx create-next-app:*)"
     ],
     "deny": [],
     "ask": []

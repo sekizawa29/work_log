@@ -1,7 +1,9 @@
+'use client'
+
 import { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import * as wanakana from 'wanakana';
-import type { Client } from '../types';
+import type { Client } from '@/types';
 
 // Japanese text matching helper
 const matchesJapanese = (input: string, target: string): boolean => {
