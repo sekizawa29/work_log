@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Timer } from './Timer';
 import { TaskInput } from './TaskInput';
 import { ManualEntryForm } from './ManualEntryForm';
@@ -33,7 +33,7 @@ interface AppContentProps {
 
 export const AppContent = ({ user }: AppContentProps) => {
     const router = useRouter();
-    const supabase = createClient();
+    const supabase = useMemo(() => createClient(), []);
 
     const {
         entries,

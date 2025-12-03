@@ -11,7 +11,13 @@
       "Bash(mkdir:*)",
       "Bash(xcopy:*)",
       "Bash(copy .env.local _src_backup)",
-      "Bash(npx create-next-app:*)"
+      "Bash(npx create-next-app:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(cmd //c \"taskkill //PID 41716 //F\")",
+      "Bash(powershell -Command \"Stop-Process -Id 41716 -Force\")",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)"
     ],
     "deny": [],
     "ask": []

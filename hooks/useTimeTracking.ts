@@ -11,7 +11,7 @@ export const useTimeTracking = (userId?: string) => {
     const [clients, setClients] = useState<Client[]>([]);
     const [activeEntry, setActiveEntry] = useState<TimeEntry | null>(null);
 
-    const supabase = createClient();
+    const supabase = useMemo(() => createClient(), []);
 
     // Fetch data from Supabase
     useEffect(() => {
