@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react';
-import { Play, Square, ArrowLeftRight, Plus, Minus, Pause } from 'lucide-react';
+import { Play, Square, Plus, Minus, Pause } from 'lucide-react';
 import { useTimer } from '@/hooks/useTimer';
+import { ModeSelector, AppMode } from './ModeSelector';
 
 type TimerMode = 'free' | 'goal';
 
@@ -15,6 +16,7 @@ interface TimerProps {
     targetDuration?: number;
     timerMode: TimerMode;
     onModeChange: (mode: TimerMode) => void;
+    onModeSelect: (mode: AppMode) => void;
     targetSeconds: number;
     onTargetSecondsChange: (seconds: number) => void;
     isPaused: boolean;
@@ -33,6 +35,7 @@ export const Timer = ({
     onStop,
     timerMode,
     onModeChange,
+    onModeSelect,
     targetSeconds,
     onTargetSecondsChange,
     isPaused,
@@ -267,15 +270,10 @@ export const Timer = ({
             {/* Mode Selector - Top Left */}
             {!isActive && (
                 <div className="absolute top-4 left-4 flex flex-col gap-2">
-                    <button
-                        onClick={() => onModeChange(timerMode === 'free' ? 'goal' : 'free')}
-                        className="flex items-center gap-2 text-slate-500 hover:text-slate-700 transition-colors"
-                    >
-                        <ArrowLeftRight size={18} />
-                        <span className="text-lg font-bold">
-                            {timerMode === 'free' ? 'フリータイマー' : 'ゴールタイマー'}
-                        </span>
-                    </button>
+                    <ModeSelector
+                        currentMode={timerMode}
+                        onModeSelect={onModeSelect}
+                    />
                     {/* Quick add buttons for goal mode */}
                     <div className={`flex flex-col gap-1.5 transition-opacity duration-200 ${timerMode === 'goal' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
                         <button

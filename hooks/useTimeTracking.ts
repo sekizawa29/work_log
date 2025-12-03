@@ -297,6 +297,74 @@ export const useTimeTracking = (userId?: string) => {
         }
     }, [userId, supabase]);
 
+    const addManualEntry = useCallback(async (
+        taskName: string,
+        clientId: string,
+        startTime: number,
+        endTime: number,
+        dateStr: string // YYYY-MM-DD
+    ) => {
+        if (!userId) return;
+
+        const duration = Math.floor((endTime - startTime) / 1000);
+
+        // Construct full ISO strings for DB
+        // Note: The startTime/endTime passed here should already be timestamps that include the correct date
+        // But if they are just times on the specific date, we might need to be careful.
+        // Assuming the caller constructs the full timestamp correctly.
+
+        const newEntryPayload = {
+            user_id: userId,
+            task_name: taskName,
+            client_id: clientId,
+            start_time: new Date(startTime).toISOString(),
+            end_time: new Date(endTime).toISOString(),
+            duration: duration,
+        };
+
+        // Optimistic update
+        const tempId = generateId();
+        const optimisticEntry: TimeEntry = {
+            id: tempId,
+            taskName,
+            clientId,
+            startTime,
+            endTime,
+            duration,
+            targetDuration: undefined,
+            date: dateStr,
+        };
+
+        setEntries(prev => [optimisticEntry, ...prev]);
+
+        const { data, error } = await supabase
+            .from('time_entries')
+            .insert([newEntryPayload])
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error adding manual entry:', error);
+            setEntries(prev => prev.filter(e => e.id !== tempId));
+            return;
+        }
+
+        if (data) {
+            // Update ID with real one
+            const realEntry: TimeEntry = {
+                id: data.id,
+                taskName: data.task_name,
+                clientId: data.client_id,
+                startTime: new Date(data.start_time).getTime(),
+                endTime: data.end_time ? new Date(data.end_time).getTime() : null,
+                duration: data.duration || 0,
+                targetDuration: data.target_duration,
+                date: formatDate(new Date(data.start_time)),
+            };
+            setEntries(prev => prev.map(e => e.id === tempId ? realEntry : e));
+        }
+    }, [userId, supabase]);
+
     return {
         entries,
         clients: sortedClients,
@@ -308,5 +376,6 @@ export const useTimeTracking = (userId?: string) => {
         deleteEntry,
         deleteClient,
         updateEntry,
+        addManualEntry,
     };
 };

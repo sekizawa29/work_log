@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Timer } from './Timer';
 import { TaskInput } from './TaskInput';
+import { ManualEntryForm } from './ManualEntryForm';
 import { TaskHistory } from './TaskHistory';
 import { Analytics } from './Analytics';
 import { useTimeTracking } from '@/hooks/useTimeTracking';
@@ -11,8 +12,11 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import type { User } from '@supabase/supabase-js';
 
+import { AppMode } from './ModeSelector';
+
 type Tab = 'timer' | 'analytics';
 type TimerMode = 'free' | 'goal';
+type InputMode = 'timer' | 'manual';
 
 const PENDING_TIMER_KEY = 'ticlog_pending_timer';
 
@@ -39,12 +43,15 @@ export const AppContent = ({ user }: AppContentProps) => {
         addClient,
         startTimer,
         stopTimer,
+
         deleteEntry,
         deleteClient,
         updateEntry,
+        addManualEntry,
     } = useTimeTracking(user.id);
 
     const [activeTab, setActiveTab] = useState<Tab>('timer');
+    const [inputMode, setInputMode] = useState<InputMode>('timer');
     const [taskName, setTaskName] = useState('');
     const [selectedClientId, setSelectedClientId] = useState('');
     const [timerMode, setTimerMode] = useState<TimerMode>('free');
@@ -113,6 +120,27 @@ export const AppContent = ({ user }: AppContentProps) => {
         router.push('/');
     };
 
+    const handleManualEntry = async (startTime: number, endTime: number, dateStr: string) => {
+        if (!taskName || !selectedClientId) {
+            alert('タスク名とクライアントを選択してください');
+            return;
+        }
+
+        await addManualEntry(taskName, selectedClientId, startTime, endTime, dateStr);
+        setTaskName('');
+        setSelectedClientId('');
+        // Stay in manual mode - don't switch back to timer
+    };
+
+    const handleModeSelect = (mode: AppMode) => {
+        if (mode === 'manual') {
+            setInputMode('manual');
+        } else {
+            setInputMode('timer');
+            setTimerMode(mode);
+        }
+    };
+
     const isTimerActive = !!activeEntry;
 
     return (
@@ -168,23 +196,34 @@ export const AppContent = ({ user }: AppContentProps) => {
                             recentTaskNames={recentTaskNames}
                             onDeleteClient={deleteClient}
                         />
-                        <Timer
-                            isActive={isTimerActive}
-                            startTime={activeEntry?.startTime ?? null}
-                            taskName={taskName}
-                            targetDuration={timerMode === 'goal' && isTimerActive ? activeEntry?.targetDuration : undefined}
-                            onStart={handleStart}
-                            onStop={handleStop}
-                            timerMode={timerMode}
-                            onModeChange={setTimerMode}
-                            targetSeconds={targetSeconds}
-                            onTargetSecondsChange={setTargetSeconds}
-                            isPaused={isPaused}
-                            pausedAt={pausedAt}
-                            totalPauseDuration={totalPauseDuration}
-                            onPause={handlePause}
-                            onResume={handleResume}
-                        />
+
+                        {inputMode === 'timer' ? (
+                            <Timer
+                                isActive={isTimerActive}
+                                startTime={activeEntry?.startTime ?? null}
+                                taskName={taskName}
+                                targetDuration={timerMode === 'goal' && isTimerActive ? activeEntry?.targetDuration : undefined}
+                                onStart={handleStart}
+                                onStop={handleStop}
+                                timerMode={timerMode}
+                                onModeChange={setTimerMode}
+                                onModeSelect={handleModeSelect}
+                                targetSeconds={targetSeconds}
+                                onTargetSecondsChange={setTargetSeconds}
+                                isPaused={isPaused}
+                                pausedAt={pausedAt}
+                                totalPauseDuration={totalPauseDuration}
+                                onPause={handlePause}
+                                onResume={handleResume}
+                            />
+                        ) : (
+                            <ManualEntryForm
+                                onAddEntry={handleManualEntry}
+                                onModeSelect={handleModeSelect}
+                                taskName={taskName}
+                                selectedClientId={selectedClientId}
+                            />
+                        )}
                         <TaskHistory
                             entries={entries}
                             clients={clients}
