@@ -131,12 +131,12 @@ export const AppContent = ({ user }: AppContentProps) => {
                 </div>
 
                 {/* Tab Navigation */}
-                <div className="flex mb-6 bg-white rounded-xl p-1 shadow-sm border border-slate-100">
+                <div className="flex mb-6 gap-2">
                     <button
                         onClick={() => setActiveTab('timer')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-medium transition-all ${activeTab === 'timer'
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-all ${activeTab === 'timer'
                             ? 'bg-primary-500 text-white shadow-md'
-                            : 'text-slate-500 hover:text-slate-700'
+                            : 'bg-[#FBFDFF] text-slate-700 hover:bg-slate-100'
                             }`}
                     >
                         <Clock size={18} />
@@ -144,9 +144,9 @@ export const AppContent = ({ user }: AppContentProps) => {
                     </button>
                     <button
                         onClick={() => setActiveTab('analytics')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg font-medium transition-all ${activeTab === 'analytics'
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-medium transition-all ${activeTab === 'analytics'
                             ? 'bg-primary-500 text-white shadow-md'
-                            : 'text-slate-500 hover:text-slate-700'
+                            : 'bg-[#FBFDFF] text-slate-700 hover:bg-slate-100'
                             }`}
                     >
                         <BarChart3 size={18} />

@@ -83,19 +83,28 @@ export const TaskHistory = ({ entries, clients, onDelete, onUpdate, isPaused = f
                         totalDuration: 0,
                         entries: [],
                         hasActiveEntry: false,
+                        latestUpdate: 0,
                     };
                 }
                 acc[entry.taskName].totalDuration += getEntryDuration(entry);
                 acc[entry.taskName].entries.push(entry);
+                // 最新の更新時刻を追跡（endTimeがnullなら進行中なので最大値）
+                const entryTime = entry.endTime ?? Number.MAX_SAFE_INTEGER;
+                if (entryTime > acc[entry.taskName].latestUpdate) {
+                    acc[entry.taskName].latestUpdate = entryTime;
+                }
                 if (entry.endTime === null) {
                     acc[entry.taskName].hasActiveEntry = true;
                 }
                 return acc;
-            }, {} as Record<string, { taskName: string; totalDuration: number; entries: TimeEntry[]; hasActiveEntry: boolean }>);
+            }, {} as Record<string, { taskName: string; totalDuration: number; entries: TimeEntry[]; hasActiveEntry: boolean; latestUpdate: number }>);
 
-            const tasks = Object.values(taskMap).sort((a, b) => b.totalDuration - a.totalDuration);
+            // タスクを更新順にソート
+            const tasks = Object.values(taskMap).sort((a, b) => b.latestUpdate - a.latestUpdate);
             const totalDuration = tasks.reduce((sum, t) => sum + t.totalDuration, 0);
             const hasActiveEntry = tasks.some(t => t.hasActiveEntry);
+            // クライアントの最新更新時刻
+            const latestUpdate = tasks.length > 0 ? tasks[0].latestUpdate : 0;
 
             return {
                 clientId: client.id,
@@ -104,8 +113,9 @@ export const TaskHistory = ({ entries, clients, onDelete, onUpdate, isPaused = f
                 tasks,
                 totalDuration,
                 hasActiveEntry,
+                latestUpdate,
             };
-        }).filter(g => g.totalDuration > 0).sort((a, b) => b.totalDuration - a.totalDuration);
+        }).filter(g => g.totalDuration > 0).sort((a, b) => b.latestUpdate - a.latestUpdate);
     }, [clients, entries, now, isPaused, pausedAt, totalPauseDuration]);
 
     // Expand clients and tasks with active entries
@@ -212,14 +222,14 @@ export const TaskHistory = ({ entries, clients, onDelete, onUpdate, isPaused = f
                                                                             </div>
                                                                             <button
                                                                                 onClick={() => handleEditClick(entry)}
-                                                                                className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-primary-600 p-1.5 rounded-lg hover:bg-primary-50"
+                                                                                className="text-slate-400 hover:text-primary-600 p-1.5 rounded-lg hover:bg-primary-50 transition-colors"
                                                                                 title="編集"
                                                                             >
                                                                                 <Pencil size={14} />
                                                                             </button>
                                                                             <button
                                                                                 onClick={() => onDelete(entry.id)}
-                                                                                className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50"
+                                                                                className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
                                                                                 title="削除"
                                                                             >
                                                                                 <Trash2 size={14} />

@@ -11,13 +11,26 @@ interface EditEntryModalProps {
     onSave: (id: string, startTime: number, endTime: number | null) => void;
 }
 
+// ローカルタイムゾーンでdatetime-local用の文字列を生成
+const toLocalDateTimeString = (timestamp: number): string => {
+    const date = new Date(timestamp);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 export const EditEntryModal = ({ isOpen, onClose, entry, onSave }: EditEntryModalProps) => {
     const [startTime, setStartTime] = useState(() =>
-        entry ? new Date(entry.startTime).toISOString().slice(0, 16) : ''
+        entry ? toLocalDateTimeString(entry.startTime) : ''
     );
-    const [endTime, setEndTime] = useState(() =>
-        entry && entry.endTime ? new Date(entry.endTime).toISOString().slice(0, 16) : ''
-    );
+    const [endTime, setEndTime] = useState(() => {
+        if (!entry) return '';
+        // 進行中（計測中）の場合は現在時刻を入れる
+        return toLocalDateTimeString(entry.endTime ?? Date.now());
+    });
 
     if (!isOpen || !entry) return null;
 
@@ -36,8 +49,14 @@ export const EditEntryModal = ({ isOpen, onClose, entry, onSave }: EditEntryModa
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div
+            className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-50 p-4"
+            onClick={onClose}
+        >
+            <div
+                className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200"
+                onClick={(e) => e.stopPropagation()}
+            >
                 <div className="flex justify-between items-center p-4 border-b border-slate-100">
                     <h3 className="font-bold text-lg text-slate-800">履歴の編集</h3>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
