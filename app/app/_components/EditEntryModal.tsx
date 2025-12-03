@@ -1,14 +1,14 @@
 'use client'
 
 import { useState } from 'react';
-import { X, Save } from 'lucide-react';
+import { X, Save, MessageSquare } from 'lucide-react';
 import type { TimeEntry } from '@/types';
 
 interface EditEntryModalProps {
     isOpen: boolean;
     onClose: () => void;
     entry: TimeEntry | null;
-    onSave: (id: string, startTime: number, endTime: number | null) => void;
+    onSave: (id: string, startTime: number, endTime: number | null, comment?: string) => void;
 }
 
 // ローカルタイムゾーンでdatetime-local用の文字列を生成
@@ -31,6 +31,7 @@ export const EditEntryModal = ({ isOpen, onClose, entry, onSave }: EditEntryModa
         // 進行中（計測中）の場合は現在時刻を入れる
         return toLocalDateTimeString(entry.endTime ?? Date.now());
     });
+    const [comment, setComment] = useState(() => entry?.comment || '');
 
     if (!isOpen || !entry) return null;
 
@@ -44,7 +45,7 @@ export const EditEntryModal = ({ isOpen, onClose, entry, onSave }: EditEntryModa
             return;
         }
 
-        onSave(entry.id, start, end);
+        onSave(entry.id, start, end, comment || undefined);
         onClose();
     };
 
@@ -93,6 +94,24 @@ export const EditEntryModal = ({ isOpen, onClose, entry, onSave }: EditEntryModa
                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
                             />
                             <p className="text-xs text-slate-500 mt-1">※空欄の場合は「計測中」になります</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">コメント</label>
+                            <div className="relative">
+                                <MessageSquare size={14} className="absolute left-3 top-3 text-slate-400" />
+                                <input
+                                    type="text"
+                                    value={comment}
+                                    onChange={(e) => setComment(e.target.value)}
+                                    placeholder="コメントを入力"
+                                    maxLength={500}
+                                    className="w-full pl-8 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 outline-none transition-all"
+                                />
+                            </div>
+                            {comment.length > 0 && (
+                                <p className="text-xs text-slate-500 mt-1 text-right">{comment.length}/500</p>
+                            )}
                         </div>
                     </div>
 

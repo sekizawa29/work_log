@@ -65,6 +65,7 @@ export const useTimeTracking = (userId?: string) => {
                     endTime: e.end_time ? new Date(e.end_time).getTime() : null,
                     duration: e.duration || 0,
                     targetDuration: e.target_duration,
+                    comment: e.comment || undefined,
                     date: formatDate(new Date(e.start_time)),
                 }));
 
@@ -115,7 +116,7 @@ export const useTimeTracking = (userId?: string) => {
         return null;
     }, [userId, supabase]);
 
-    const startTimer = useCallback(async (taskName: string, clientId: string, targetDuration?: number) => {
+    const startTimer = useCallback(async (taskName: string, clientId: string, targetDuration?: number, comment?: string) => {
         if (!userId) return;
 
         const startTime = new Date();
@@ -128,6 +129,7 @@ export const useTimeTracking = (userId?: string) => {
             end_time: null,
             duration: 0,
             target_duration: targetDuration || null,
+            comment: comment || null,
         };
 
         // Optimistic update
@@ -140,6 +142,7 @@ export const useTimeTracking = (userId?: string) => {
             endTime: null,
             duration: 0,
             targetDuration,
+            comment,
             date: formatDate(startTime),
         };
 
@@ -169,10 +172,42 @@ export const useTimeTracking = (userId?: string) => {
                 endTime: null,
                 duration: 0,
                 targetDuration: data.target_duration,
+                comment: data.comment || undefined,
                 date: formatDate(new Date(data.start_time)),
             };
             setActiveEntry(realEntry);
             setEntries(prev => prev.map(e => e.id === tempId ? realEntry : e));
+        }
+    }, [userId, supabase]);
+
+    const updateComment = useCallback(async (id: string, comment: string) => {
+        if (!userId) return;
+
+        const trimmedComment = comment.slice(0, 500); // Enforce 500 char limit
+
+        // Optimistic update
+        setEntries(prev => prev.map(e => {
+            if (e.id === id) {
+                return { ...e, comment: trimmedComment || undefined };
+            }
+            return e;
+        }));
+
+        // Also update activeEntry if it matches
+        setActiveEntry(prev => {
+            if (prev && prev.id === id) {
+                return { ...prev, comment: trimmedComment || undefined };
+            }
+            return prev;
+        });
+
+        const { error } = await supabase
+            .from('time_entries')
+            .update({ comment: trimmedComment || null })
+            .eq('id', id);
+
+        if (error) {
+            console.error('Error updating comment:', error);
         }
     }, [userId, supabase]);
 
@@ -261,7 +296,7 @@ export const useTimeTracking = (userId?: string) => {
         });
     }, [clients, entries]);
 
-    const updateEntry = useCallback(async (id: string, startTime: number, endTime: number | null) => {
+    const updateEntry = useCallback(async (id: string, startTime: number, endTime: number | null, comment?: string) => {
         if (!userId) return;
 
         const duration = endTime ? Math.floor((endTime - startTime) / 1000) : 0;
@@ -275,7 +310,8 @@ export const useTimeTracking = (userId?: string) => {
                     startTime,
                     endTime,
                     duration,
-                    date
+                    date,
+                    comment
                 };
             }
             return e;
@@ -286,7 +322,8 @@ export const useTimeTracking = (userId?: string) => {
             .update({
                 start_time: new Date(startTime).toISOString(),
                 end_time: endTime ? new Date(endTime).toISOString() : null,
-                duration
+                duration,
+                comment: comment || null
             })
             .eq('id', id);
 
@@ -302,7 +339,8 @@ export const useTimeTracking = (userId?: string) => {
         clientId: string,
         startTime: number,
         endTime: number,
-        dateStr: string // YYYY-MM-DD
+        dateStr: string, // YYYY-MM-DD
+        comment?: string
     ) => {
         if (!userId) return;
 
@@ -320,6 +358,7 @@ export const useTimeTracking = (userId?: string) => {
             start_time: new Date(startTime).toISOString(),
             end_time: new Date(endTime).toISOString(),
             duration: duration,
+            comment: comment || null,
         };
 
         // Optimistic update
@@ -332,6 +371,7 @@ export const useTimeTracking = (userId?: string) => {
             endTime,
             duration,
             targetDuration: undefined,
+            comment,
             date: dateStr,
         };
 
@@ -359,6 +399,7 @@ export const useTimeTracking = (userId?: string) => {
                 endTime: data.end_time ? new Date(data.end_time).getTime() : null,
                 duration: data.duration || 0,
                 targetDuration: data.target_duration,
+                comment: data.comment || undefined,
                 date: formatDate(new Date(data.start_time)),
             };
             setEntries(prev => prev.map(e => e.id === tempId ? realEntry : e));
@@ -376,6 +417,7 @@ export const useTimeTracking = (userId?: string) => {
         deleteEntry,
         deleteClient,
         updateEntry,
+        updateComment,
         addManualEntry,
     };
 };

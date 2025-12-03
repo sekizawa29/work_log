@@ -43,10 +43,10 @@ export const AppContent = ({ user }: AppContentProps) => {
         addClient,
         startTimer,
         stopTimer,
-
         deleteEntry,
         deleteClient,
         updateEntry,
+        updateComment,
         addManualEntry,
     } = useTimeTracking(user.id);
 
@@ -59,6 +59,7 @@ export const AppContent = ({ user }: AppContentProps) => {
     const [isPaused, setIsPaused] = useState(false);
     const [pausedAt, setPausedAt] = useState<number | null>(null);
     const [totalPauseDuration, setTotalPauseDuration] = useState(0);
+    const [comment, setComment] = useState('');
 
     // Check for pending timer from landing page
     useEffect(() => {
@@ -79,27 +80,36 @@ export const AppContent = ({ user }: AppContentProps) => {
         }
     }, []);
 
-    // Sync taskName with activeEntry
+    // Sync taskName and comment with activeEntry
     useEffect(() => {
         if (activeEntry) {
             setTaskName(activeEntry.taskName);
             setSelectedClientId(activeEntry.clientId);
+            setComment(activeEntry.comment || '');
         }
     }, [activeEntry]);
 
     const handleStart = async () => {
         if (!taskName || !selectedClientId) return;
         const target = timerMode === 'goal' ? targetSeconds : undefined;
-        await startTimer(taskName, selectedClientId, target);
+        await startTimer(taskName, selectedClientId, target, comment || undefined);
     };
 
     const handleStop = async () => {
         await stopTimer(totalPauseDuration);
         setTaskName('');
         setSelectedClientId('');
+        setComment('');
         setIsPaused(false);
         setPausedAt(null);
         setTotalPauseDuration(0);
+    };
+
+    const handleCommentChange = (newComment: string) => {
+        setComment(newComment);
+        if (activeEntry) {
+            updateComment(activeEntry.id, newComment);
+        }
     };
 
     const handlePause = () => {
@@ -120,15 +130,16 @@ export const AppContent = ({ user }: AppContentProps) => {
         router.push('/');
     };
 
-    const handleManualEntry = async (startTime: number, endTime: number, dateStr: string) => {
+    const handleManualEntry = async (startTime: number, endTime: number, dateStr: string, entryComment?: string) => {
         if (!taskName || !selectedClientId) {
             alert('タスク名とクライアントを選択してください');
             return;
         }
 
-        await addManualEntry(taskName, selectedClientId, startTime, endTime, dateStr);
+        await addManualEntry(taskName, selectedClientId, startTime, endTime, dateStr, entryComment);
         setTaskName('');
         setSelectedClientId('');
+        setComment('');
         // Stay in manual mode - don't switch back to timer
     };
 
@@ -215,6 +226,8 @@ export const AppContent = ({ user }: AppContentProps) => {
                                 totalPauseDuration={totalPauseDuration}
                                 onPause={handlePause}
                                 onResume={handleResume}
+                                comment={comment}
+                                onCommentChange={handleCommentChange}
                             />
                         ) : (
                             <ManualEntryForm
@@ -222,6 +235,8 @@ export const AppContent = ({ user }: AppContentProps) => {
                                 onModeSelect={handleModeSelect}
                                 taskName={taskName}
                                 selectedClientId={selectedClientId}
+                                comment={comment}
+                                onCommentChange={setComment}
                             />
                         )}
                         <TaskHistory

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react';
-import { Play, Square, Plus, Minus, Pause } from 'lucide-react';
+import { Play, Square, Plus, Minus, Pause, MessageSquare } from 'lucide-react';
 import { useTimer } from '@/hooks/useTimer';
 import { ModeSelector, AppMode } from './ModeSelector';
 
@@ -24,6 +24,8 @@ interface TimerProps {
     totalPauseDuration: number;
     onPause: () => void;
     onResume: () => void;
+    comment: string;
+    onCommentChange: (comment: string) => void;
 }
 
 export const Timer = ({
@@ -43,6 +45,8 @@ export const Timer = ({
     totalPauseDuration,
     onPause,
     onResume,
+    comment,
+    onCommentChange,
 }: TimerProps) => {
     const effectiveNow = isPaused && pausedAt ? pausedAt : Date.now();
     // Use useTimer to trigger re-renders
@@ -354,6 +358,26 @@ export const Timer = ({
                         {taskName}
                     </div>
                 )}
+
+                {/* Comment Input */}
+                <div className="mt-3 w-full max-w-xs px-4">
+                    <div className="relative">
+                        <MessageSquare size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                            type="text"
+                            value={comment}
+                            onChange={(e) => onCommentChange(e.target.value)}
+                            placeholder="コメントを入力"
+                            maxLength={500}
+                            className="w-full pl-8 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 placeholder:text-slate-400 transition-all"
+                        />
+                    </div>
+                    {comment.length > 0 && (
+                        <div className="text-xs text-slate-400 text-right mt-1">
+                            {comment.length}/500
+                        </div>
+                    )}
+                </div>
 
                 {/* Action Buttons */}
                 <div className="mt-6 flex items-center gap-4">

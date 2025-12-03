@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react';
-import { Trash2, Clock, Pencil, ChevronDown, ChevronRight } from 'lucide-react';
+import { Trash2, Clock, Pencil, ChevronDown, ChevronRight, MessageSquare } from 'lucide-react';
 import type { TimeEntry, Client } from '@/types';
 import { formatDuration, formatDateTime } from '@/utils/helpers';
 import { EditEntryModal } from './EditEntryModal';
@@ -10,7 +10,7 @@ interface TaskHistoryProps {
     entries: TimeEntry[];
     clients: Client[];
     onDelete: (id: string) => void;
-    onUpdate: (id: string, startTime: number, endTime: number | null) => void;
+    onUpdate: (id: string, startTime: number, endTime: number | null, comment?: string) => void;
     isPaused?: boolean;
     pausedAt?: number | null;
     totalPauseDuration?: number;
@@ -211,30 +211,38 @@ export const TaskHistory = ({ entries, clients, onDelete, onUpdate, isPaused = f
                                                                 {task.entries.map((entry) => (
                                                                     <div
                                                                         key={entry.id}
-                                                                        className="flex justify-between items-center bg-white rounded-lg p-2 hover:shadow-sm transition-all group"
+                                                                        className="bg-white rounded-lg p-2 hover:shadow-sm transition-all group"
                                                                     >
-                                                                        <div className="text-xs text-slate-500">
-                                                                            {formatDateTime(entry.startTime)}
-                                                                        </div>
-                                                                        <div className="flex items-center gap-1">
-                                                                            <div className="text-sm font-medium text-slate-600 mr-1">
-                                                                                {formatDuration(getEntryDuration(entry))}
+                                                                        <div className="flex justify-between items-center">
+                                                                            <div className="text-xs text-slate-500">
+                                                                                {formatDateTime(entry.startTime)}
                                                                             </div>
-                                                                            <button
-                                                                                onClick={() => handleEditClick(entry)}
-                                                                                className="text-slate-400 hover:text-primary-600 p-1.5 rounded-lg hover:bg-primary-50 transition-colors"
-                                                                                title="編集"
-                                                                            >
-                                                                                <Pencil size={14} />
-                                                                            </button>
-                                                                            <button
-                                                                                onClick={() => onDelete(entry.id)}
-                                                                                className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
-                                                                                title="削除"
-                                                                            >
-                                                                                <Trash2 size={14} />
-                                                                            </button>
+                                                                            <div className="flex items-center gap-1">
+                                                                                <div className="text-sm font-medium text-slate-600 mr-1">
+                                                                                    {formatDuration(getEntryDuration(entry))}
+                                                                                </div>
+                                                                                <button
+                                                                                    onClick={() => handleEditClick(entry)}
+                                                                                    className="text-slate-400 hover:text-primary-600 p-1.5 rounded-lg hover:bg-primary-50 transition-colors"
+                                                                                    title="編集"
+                                                                                >
+                                                                                    <Pencil size={14} />
+                                                                                </button>
+                                                                                <button
+                                                                                    onClick={() => onDelete(entry.id)}
+                                                                                    className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                                                                                    title="削除"
+                                                                                >
+                                                                                    <Trash2 size={14} />
+                                                                                </button>
+                                                                            </div>
                                                                         </div>
+                                                                        {entry.comment && (
+                                                                            <div className="mt-1.5 flex items-start gap-1.5 text-xs text-slate-500">
+                                                                                <MessageSquare size={12} className="mt-0.5 flex-shrink-0 text-slate-400" />
+                                                                                <span className="break-words">{entry.comment}</span>
+                                                                            </div>
+                                                                        )}
                                                                     </div>
                                                                 ))}
                                                             </div>

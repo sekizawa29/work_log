@@ -1,18 +1,20 @@
 'use client'
 
 import { useState, useEffect } from 'react';
-import { Save, Calendar, ArrowRight, Plus, Minus, ChevronDown, ChevronUp } from 'lucide-react';
+import { Save, Calendar, ArrowRight, Plus, Minus, ChevronDown, ChevronUp, MessageSquare } from 'lucide-react';
 import { formatDate } from '@/utils/helpers';
 import { ModeSelector, AppMode } from './ModeSelector';
 
 interface ManualEntryFormProps {
-    onAddEntry: (startTime: number, endTime: number, dateStr: string) => void;
+    onAddEntry: (startTime: number, endTime: number, dateStr: string, comment?: string) => void;
     onModeSelect: (mode: AppMode) => void;
     taskName: string;
     selectedClientId: string;
+    comment: string;
+    onCommentChange: (comment: string) => void;
 }
 
-export const ManualEntryForm = ({ onAddEntry, onModeSelect, taskName, selectedClientId }: ManualEntryFormProps) => {
+export const ManualEntryForm = ({ onAddEntry, onModeSelect, taskName, selectedClientId, comment, onCommentChange }: ManualEntryFormProps) => {
     const [date, setDate] = useState(formatDate(new Date()));
     const [startTime, setStartTime] = useState('');
     const [endTime, setEndTime] = useState('');
@@ -159,7 +161,7 @@ export const ManualEntryForm = ({ onAddEntry, onModeSelect, taskName, selectedCl
             endDate.setDate(endDate.getDate() + 1);
         }
 
-        onAddEntry(startDate.getTime(), endDate.getTime(), date);
+        onAddEntry(startDate.getTime(), endDate.getTime(), date, comment || undefined);
 
         // Reset to initial state after submission
         resetToInitialState();
@@ -221,11 +223,31 @@ export const ManualEntryForm = ({ onAddEntry, onModeSelect, taskName, selectedCl
                         </div>
                     </div>
 
+                    {/* Comment Input */}
+                    <div className="mt-6 w-full max-w-xs">
+                        <div className="relative">
+                            <MessageSquare size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                                type="text"
+                                value={comment}
+                                onChange={(e) => onCommentChange(e.target.value)}
+                                placeholder="コメントを入力"
+                                maxLength={500}
+                                className="w-full pl-8 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 placeholder:text-slate-400 transition-all"
+                            />
+                        </div>
+                        {comment.length > 0 && (
+                            <div className="text-xs text-slate-400 text-right mt-1">
+                                {comment.length}/500
+                            </div>
+                        )}
+                    </div>
+
                     {/* Custom Toggle Button */}
                     <button
                         type="button"
                         onClick={() => setShowCustom(!showCustom)}
-                        className="mt-6 flex items-center gap-1 text-sm text-slate-400 hover:text-slate-600 transition-colors"
+                        className="mt-4 flex items-center gap-1 text-sm text-slate-400 hover:text-slate-600 transition-colors"
                     >
                         {showCustom ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                         <span>カスタム記録</span>

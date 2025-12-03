@@ -28,6 +28,7 @@ create table time_entries (
   end_time timestamp with time zone,
   duration integer, -- in seconds
   target_duration integer, -- in seconds (optional target for countdown)
+  comment text check (char_length(comment) <= 500), -- optional comment (max 500 chars)
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
