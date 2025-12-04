@@ -40,6 +40,7 @@ export const AppContent = ({ user }: AppContentProps) => {
         clients,
         activeEntry,
         recentTaskNames,
+        allTaskNames,
         addClient,
         startTimer,
         stopTimer,
@@ -205,6 +206,7 @@ export const AppContent = ({ user }: AppContentProps) => {
                             onClientChange={setSelectedClientId}
                             disabled={isTimerActive}
                             recentTaskNames={recentTaskNames}
+                            allTaskNames={allTaskNames}
                             onDeleteClient={deleteClient}
                         />
 
@@ -256,6 +258,8 @@ export const AppContent = ({ user }: AppContentProps) => {
                         isPaused={isPaused}
                         pausedAt={pausedAt}
                         totalPauseDuration={totalPauseDuration}
+                        onDelete={deleteEntry}
+                        onUpdate={updateEntry}
                     />
                 )}
             </div>

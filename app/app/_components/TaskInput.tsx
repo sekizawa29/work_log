@@ -45,6 +45,7 @@ interface TaskInputProps {
     onClientChange: (clientId: string) => void;
     disabled?: boolean;
     recentTaskNames?: string[];
+    allTaskNames?: string[];
     onDeleteClient: (id: string) => void;
 }
 
@@ -57,6 +58,7 @@ export const TaskInput = ({
     onClientChange,
     disabled = false,
     recentTaskNames = [],
+    allTaskNames = [],
     onDeleteClient,
 }: TaskInputProps) => {
     const [showAddClient, setShowAddClient] = useState(false);
@@ -87,9 +89,9 @@ export const TaskInput = ({
         }
     };
 
-    const filteredSuggestions = recentTaskNames.filter(name => {
+    // Show recent 10 when input is empty, search all when typing
+    const filteredSuggestions = (!taskName.trim() ? recentTaskNames : allTaskNames).filter(name => {
         if (name === taskName) return false;
-        // Show all when input is empty, filter when typing
         if (!taskName.trim()) return true;
         return matchesJapanese(taskName, name);
     });

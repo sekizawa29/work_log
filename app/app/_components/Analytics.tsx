@@ -2,9 +2,10 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import type { TimeEntry, Client } from '@/types';
-import { formatDuration } from '@/utils/helpers';
+import { formatDuration, formatDateTime } from '@/utils/helpers';
+import { EditEntryModal } from './EditEntryModal';
 
 type DateFilter = 'all' | 'today' | 'thisWeek' | 'thisMonth';
 
@@ -14,6 +15,8 @@ interface AnalyticsProps {
     isPaused?: boolean;
     pausedAt?: number | null;
     totalPauseDuration?: number;
+    onDelete?: (id: string) => void;
+    onUpdate?: (id: string, startTime: number, endTime: number | null, comment?: string) => void;
 }
 
 const getDateRange = (filter: DateFilter): { start: Date; end: Date } | null => {
@@ -64,11 +67,19 @@ const filterLabels: Record<DateFilter, string> = {
     thisMonth: 'Month',
 };
 
-export const Analytics = ({ entries, clients, isPaused = false, pausedAt = null, totalPauseDuration = 0 }: AnalyticsProps) => {
+export const Analytics = ({ entries, clients, isPaused = false, pausedAt = null, totalPauseDuration = 0, onDelete, onUpdate }: AnalyticsProps) => {
     const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
+    const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
     const [dateFilter, setDateFilter] = useState<DateFilter>('thisMonth');
     const [now, setNow] = useState(Date.now());
     const [hasAnimated, setHasAnimated] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+
+    const handleEditClick = (entry: TimeEntry) => {
+        setEditingEntry(entry);
+        setIsEditModalOpen(true);
+    };
 
     // Update current time every second for active entries (but not when paused)
     const hasActiveEntry = entries.some(e => e.endTime === null);
@@ -111,6 +122,18 @@ export const Analytics = ({ entries, clients, isPaused = false, pausedAt = null,
         });
     };
 
+    const toggleTask = (taskKey: string) => {
+        setExpandedTasks(prev => {
+            const next = new Set(prev);
+            if (next.has(taskKey)) {
+                next.delete(taskKey);
+            } else {
+                next.add(taskKey);
+            }
+            return next;
+        });
+    };
+
     // Filter entries by date range
     const filteredEntries = useMemo(() => {
         const range = getDateRange(dateFilter);
@@ -143,14 +166,20 @@ export const Analytics = ({ entries, clients, isPaused = false, pausedAt = null,
         const clientEntries = filteredEntries.filter(e => e.clientId === client.id);
         const taskMap = clientEntries.reduce((acc, entry) => {
             if (!acc[entry.taskName]) {
-                acc[entry.taskName] = { taskName: entry.taskName, totalDuration: 0, entryCount: 0 };
+                acc[entry.taskName] = { taskName: entry.taskName, totalDuration: 0, entryCount: 0, entries: [] as TimeEntry[] };
             }
             acc[entry.taskName].totalDuration += getEntryDuration(entry);
             acc[entry.taskName].entryCount += 1;
+            acc[entry.taskName].entries.push(entry);
             return acc;
-        }, {} as Record<string, { taskName: string; totalDuration: number; entryCount: number }>);
+        }, {} as Record<string, { taskName: string; totalDuration: number; entryCount: number; entries: TimeEntry[] }>);
 
-        const tasks = Object.values(taskMap).sort((a, b) => b.totalDuration - a.totalDuration);
+        const tasks = Object.values(taskMap)
+            .map(task => ({
+                ...task,
+                entries: task.entries.sort((a, b) => b.startTime - a.startTime), // 新しい順
+            }))
+            .sort((a, b) => b.totalDuration - a.totalDuration);
         const totalDuration = tasks.reduce((sum, t) => sum + t.totalDuration, 0);
 
         return {
@@ -301,15 +330,76 @@ export const Analytics = ({ entries, clients, isPaused = false, pausedAt = null,
                                         <div className={`accordion-content ${expandedClients.has(group.clientId) ? 'expanded' : ''}`}>
                                             <div>
                                                 <div className={`bg-slate-50 p-3 space-y-2 ${expandedClients.has(group.clientId) ? 'border-t border-slate-100' : ''}`}>
-                                                    {group.tasks.map((task, index) => (
-                                                        <div
-                                                            key={index}
-                                                            className="flex justify-between items-center bg-white rounded-lg p-3 shadow-sm"
-                                                        >
-                                                            <span className="text-sm text-slate-700">{task.taskName}</span>
-                                                            <span className="font-semibold text-slate-800">{formatDuration(task.totalDuration)}</span>
-                                                        </div>
-                                                    ))}
+                                                    {group.tasks.map((task) => {
+                                                        const taskKey = `${group.clientId}-${task.taskName}`;
+                                                        return (
+                                                            <div key={taskKey} className="bg-white rounded-lg shadow-sm overflow-hidden">
+                                                                <button
+                                                                    onClick={() => toggleTask(taskKey)}
+                                                                    className="w-full flex justify-between items-center p-3 hover:bg-slate-50 transition-colors text-left"
+                                                                >
+                                                                    <div className="flex items-center gap-2">
+                                                                        {expandedTasks.has(taskKey) ? (
+                                                                            <ChevronDown size={16} className="text-slate-400" />
+                                                                        ) : (
+                                                                            <ChevronRight size={16} className="text-slate-400" />
+                                                                        )}
+                                                                        <span className="text-sm text-slate-700">{task.taskName}</span>
+                                                                        <span className="text-xs text-slate-400">({task.entryCount}件)</span>
+                                                                    </div>
+                                                                    <span className="font-semibold text-slate-800">{formatDuration(task.totalDuration)}</span>
+                                                                </button>
+
+                                                                <div className={`accordion-content ${expandedTasks.has(taskKey) ? 'expanded' : ''}`}>
+                                                                    <div>
+                                                                        <div className={`bg-slate-50 p-2 space-y-1 ${expandedTasks.has(taskKey) ? 'border-t border-slate-100' : ''}`}>
+                                                                            {task.entries.map((entry) => (
+                                                                                <div
+                                                                                    key={entry.id}
+                                                                                    className="bg-white rounded-lg p-2 hover:shadow-sm transition-all group"
+                                                                                >
+                                                                                    <div className="flex justify-between items-center">
+                                                                                        <div className="text-xs text-slate-500">
+                                                                                            {formatDateTime(entry.startTime)}
+                                                                                        </div>
+                                                                                        <div className="flex items-center gap-1">
+                                                                                            <div className="text-sm font-medium text-slate-600 mr-1">
+                                                                                                {formatDuration(getEntryDuration(entry))}
+                                                                                            </div>
+                                                                                            {onUpdate && (
+                                                                                                <button
+                                                                                                    onClick={() => handleEditClick(entry)}
+                                                                                                    className="text-slate-400 hover:text-primary-600 p-1.5 rounded-lg hover:bg-primary-50 transition-colors"
+                                                                                                    title="編集"
+                                                                                                >
+                                                                                                    <Pencil size={14} />
+                                                                                                </button>
+                                                                                            )}
+                                                                                            {onDelete && (
+                                                                                                <button
+                                                                                                    onClick={() => onDelete(entry.id)}
+                                                                                                    className="text-slate-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                                                                                                    title="削除"
+                                                                                                >
+                                                                                                    <Trash2 size={14} />
+                                                                                                </button>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    {entry.comment && (
+                                                                                        <div className="mt-1.5 flex items-start gap-1.5 text-xs text-slate-500">
+                                                                                            <MessageSquare size={12} className="mt-0.5 flex-shrink-0 text-slate-400" />
+                                                                                            <span className="break-words">{entry.comment}</span>
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
                                         </div>
@@ -319,6 +409,16 @@ export const Analytics = ({ entries, clients, isPaused = false, pausedAt = null,
                         </div>
                     )}
                 </div>
+            )}
+
+            {onUpdate && (
+                <EditEntryModal
+                    key={editingEntry ? editingEntry.id : 'closed'}
+                    isOpen={isEditModalOpen}
+                    onClose={() => setIsEditModalOpen(false)}
+                    entry={editingEntry}
+                    onSave={onUpdate}
+                />
             )}
         </div>
     );

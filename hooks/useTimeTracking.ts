@@ -276,7 +276,8 @@ export const useTimeTracking = (userId?: string) => {
         }
     }, [userId, supabase]);
 
-    const recentTaskNames = Array.from(new Set(entries.map(e => e.taskName))).slice(0, 10);
+    const allTaskNames = Array.from(new Set(entries.map(e => e.taskName)));
+    const recentTaskNames = allTaskNames.slice(0, 10);
 
     // Sort clients by most recent usage
     const sortedClients = useMemo(() => {
@@ -411,6 +412,7 @@ export const useTimeTracking = (userId?: string) => {
         clients: sortedClients,
         activeEntry,
         recentTaskNames,
+        allTaskNames,
         addClient,
         startTimer,
         stopTimer,
