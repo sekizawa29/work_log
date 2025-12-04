@@ -13,6 +13,9 @@ export interface TimeEntry {
     duration: number; // in seconds
     targetDuration?: number; // in seconds, optional
     comment?: string; // optional comment (max 500 chars)
+    isPaused?: boolean; // whether timer is currently paused
+    pausedAt?: number | null; // Unix timestamp when paused
+    totalPauseDuration?: number; // total paused time in seconds
     date: string; // ISO date string (YYYY-MM-DD)
 }
 

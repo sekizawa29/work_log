@@ -66,6 +66,9 @@ export const useTimeTracking = (userId?: string) => {
                     duration: e.duration || 0,
                     targetDuration: e.target_duration,
                     comment: e.comment || undefined,
+                    isPaused: e.is_paused || false,
+                    pausedAt: e.paused_at ? new Date(e.paused_at).getTime() : null,
+                    totalPauseDuration: e.total_pause_duration || 0,
                     date: formatDate(new Date(e.start_time)),
                 }));
 
@@ -130,6 +133,9 @@ export const useTimeTracking = (userId?: string) => {
             duration: 0,
             target_duration: targetDuration || null,
             comment: comment || null,
+            is_paused: false,
+            paused_at: null,
+            total_pause_duration: 0,
         };
 
         // Optimistic update
@@ -143,6 +149,9 @@ export const useTimeTracking = (userId?: string) => {
             duration: 0,
             targetDuration,
             comment,
+            isPaused: false,
+            pausedAt: null,
+            totalPauseDuration: 0,
             date: formatDate(startTime),
         };
 
@@ -173,6 +182,9 @@ export const useTimeTracking = (userId?: string) => {
                 duration: 0,
                 targetDuration: data.target_duration,
                 comment: data.comment || undefined,
+                isPaused: false,
+                pausedAt: null,
+                totalPauseDuration: 0,
                 date: formatDate(new Date(data.start_time)),
             };
             setActiveEntry(realEntry);
@@ -211,18 +223,88 @@ export const useTimeTracking = (userId?: string) => {
         }
     }, [userId, supabase]);
 
-    const stopTimer = useCallback(async (totalPauseDuration: number = 0) => {
+    const pauseTimer = useCallback(async () => {
+        if (!activeEntry || !userId) return;
+
+        const pausedAt = Date.now();
+
+        // Optimistic update
+        const pausedEntry: TimeEntry = {
+            ...activeEntry,
+            isPaused: true,
+            pausedAt,
+        };
+
+        setActiveEntry(pausedEntry);
+        setEntries(prev => prev.map(e => e.id === activeEntry.id ? pausedEntry : e));
+
+        const { error } = await supabase
+            .from('time_entries')
+            .update({
+                is_paused: true,
+                paused_at: new Date(pausedAt).toISOString(),
+            })
+            .eq('id', activeEntry.id);
+
+        if (error) {
+            console.error('Error pausing timer:', error);
+        }
+    }, [activeEntry, userId, supabase]);
+
+    const resumeTimer = useCallback(async () => {
+        if (!activeEntry || !userId || !activeEntry.pausedAt) return;
+
+        const now = Date.now();
+        const additionalPauseDuration = Math.floor((now - activeEntry.pausedAt) / 1000);
+        const newTotalPauseDuration = (activeEntry.totalPauseDuration || 0) + additionalPauseDuration;
+
+        // Optimistic update
+        const resumedEntry: TimeEntry = {
+            ...activeEntry,
+            isPaused: false,
+            pausedAt: null,
+            totalPauseDuration: newTotalPauseDuration,
+        };
+
+        setActiveEntry(resumedEntry);
+        setEntries(prev => prev.map(e => e.id === activeEntry.id ? resumedEntry : e));
+
+        const { error } = await supabase
+            .from('time_entries')
+            .update({
+                is_paused: false,
+                paused_at: null,
+                total_pause_duration: newTotalPauseDuration,
+            })
+            .eq('id', activeEntry.id);
+
+        if (error) {
+            console.error('Error resuming timer:', error);
+        }
+    }, [activeEntry, userId, supabase]);
+
+    const stopTimer = useCallback(async () => {
         if (!activeEntry || !userId) return;
 
         const endTime = new Date();
         const rawDuration = Math.floor((endTime.getTime() - activeEntry.startTime) / 1000);
-        const duration = Math.max(0, rawDuration - totalPauseDuration);
+
+        // Calculate final pause duration (include current pause if paused)
+        let finalPauseDuration = activeEntry.totalPauseDuration || 0;
+        if (activeEntry.isPaused && activeEntry.pausedAt) {
+            finalPauseDuration += Math.floor((endTime.getTime() - activeEntry.pausedAt) / 1000);
+        }
+
+        const duration = Math.max(0, rawDuration - finalPauseDuration);
 
         // Optimistic update
         const completedEntry: TimeEntry = {
             ...activeEntry,
             endTime: endTime.getTime(),
             duration,
+            isPaused: false,
+            pausedAt: null,
+            totalPauseDuration: finalPauseDuration,
         };
 
         setActiveEntry(null);
@@ -232,7 +314,10 @@ export const useTimeTracking = (userId?: string) => {
             .from('time_entries')
             .update({
                 end_time: endTime.toISOString(),
-                duration: duration
+                duration: duration,
+                is_paused: false,
+                paused_at: null,
+                total_pause_duration: finalPauseDuration,
             })
             .eq('id', activeEntry.id);
 
@@ -416,6 +501,8 @@ export const useTimeTracking = (userId?: string) => {
         addClient,
         startTimer,
         stopTimer,
+        pauseTimer,
+        resumeTimer,
         deleteEntry,
         deleteClient,
         updateEntry,

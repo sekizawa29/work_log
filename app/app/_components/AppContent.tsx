@@ -44,6 +44,8 @@ export const AppContent = ({ user }: AppContentProps) => {
         addClient,
         startTimer,
         stopTimer,
+        pauseTimer,
+        resumeTimer,
         deleteEntry,
         deleteClient,
         updateEntry,
@@ -57,10 +59,12 @@ export const AppContent = ({ user }: AppContentProps) => {
     const [selectedClientId, setSelectedClientId] = useState('');
     const [timerMode, setTimerMode] = useState<TimerMode>('free');
     const [targetSeconds, setTargetSeconds] = useState(0);
-    const [isPaused, setIsPaused] = useState(false);
-    const [pausedAt, setPausedAt] = useState<number | null>(null);
-    const [totalPauseDuration, setTotalPauseDuration] = useState(0);
     const [comment, setComment] = useState('');
+
+    // Derive pause state from activeEntry (persisted in DB)
+    const isPaused = activeEntry?.isPaused ?? false;
+    const pausedAt = activeEntry?.pausedAt ?? null;
+    const totalPauseDuration = activeEntry?.totalPauseDuration ?? 0;
 
     // Check for pending timer from landing page
     useEffect(() => {
@@ -97,13 +101,10 @@ export const AppContent = ({ user }: AppContentProps) => {
     };
 
     const handleStop = async () => {
-        await stopTimer(totalPauseDuration);
+        await stopTimer();
         setTaskName('');
         setSelectedClientId('');
         setComment('');
-        setIsPaused(false);
-        setPausedAt(null);
-        setTotalPauseDuration(0);
     };
 
     const handleCommentChange = (newComment: string) => {
@@ -113,17 +114,12 @@ export const AppContent = ({ user }: AppContentProps) => {
         }
     };
 
-    const handlePause = () => {
-        setIsPaused(true);
-        setPausedAt(Date.now());
+    const handlePause = async () => {
+        await pauseTimer();
     };
 
-    const handleResume = () => {
-        if (pausedAt) {
-            setTotalPauseDuration(prev => prev + Math.floor((Date.now() - pausedAt) / 1000));
-        }
-        setIsPaused(false);
-        setPausedAt(null);
+    const handleResume = async () => {
+        await resumeTimer();
     };
 
     const handleLogout = async () => {

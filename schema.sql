@@ -29,6 +29,9 @@ create table time_entries (
   duration integer, -- in seconds
   target_duration integer, -- in seconds (optional target for countdown)
   comment text check (char_length(comment) <= 500), -- optional comment (max 500 chars)
+  is_paused boolean default false, -- whether timer is currently paused
+  paused_at timestamp with time zone, -- when the timer was paused
+  total_pause_duration integer default 0, -- total paused time in seconds
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
