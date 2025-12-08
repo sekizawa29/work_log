@@ -4,10 +4,10 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ChevronDown, ChevronRight, MessageSquare, Pencil, Trash2 } from 'lucide-react';
 import type { TimeEntry, Client } from '@/types';
-import { formatDuration, formatDateTime } from '@/utils/helpers';
+import { formatDuration, formatDateTime, formatDate } from '@/utils/helpers';
 import { EditEntryModal } from './EditEntryModal';
 
-type DateFilter = 'all' | 'today' | 'thisWeek' | 'thisMonth';
+type DateFilter = 'all' | 'today' | 'thisWeek' | 'lastWeek' | 'thisMonth';
 
 interface AnalyticsProps {
     entries: TimeEntry[];
@@ -33,11 +33,21 @@ const getDateRange = (filter: DateFilter): { start: Date; end: Date } | null => 
             };
         case 'thisWeek': {
             const dayOfWeek = today.getDay();
-            const monday = new Date(today);
-            monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-            const sunday = new Date(monday);
-            sunday.setDate(monday.getDate() + 7);
-            return { start: monday, end: sunday };
+            // 日曜始まりの週 (日曜日 = 0)
+            const sunday = new Date(today);
+            sunday.setDate(today.getDate() - dayOfWeek);
+            const nextSunday = new Date(sunday);
+            nextSunday.setDate(sunday.getDate() + 7);
+            return { start: sunday, end: nextSunday };
+        }
+        case 'lastWeek': {
+            const dayOfWeek = today.getDay();
+            // 先週の日曜日
+            const lastSunday = new Date(today);
+            lastSunday.setDate(today.getDate() - dayOfWeek - 7);
+            const thisSunday = new Date(lastSunday);
+            thisSunday.setDate(lastSunday.getDate() + 7);
+            return { start: lastSunday, end: thisSunday };
         }
         case 'thisMonth': {
             const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -54,7 +64,7 @@ const getDaysInRange = (filter: DateFilter): string[] => {
     const days: string[] = [];
     const current = new Date(range.start);
     while (current < range.end) {
-        days.push(current.toISOString().split('T')[0]);
+        days.push(formatDate(current));
         current.setDate(current.getDate() + 1);
     }
     return days;
@@ -64,6 +74,7 @@ const filterLabels: Record<DateFilter, string> = {
     all: 'All',
     today: 'Today',
     thisWeek: 'Week',
+    lastWeek: 'Last Week',
     thisMonth: 'Month',
 };
 
